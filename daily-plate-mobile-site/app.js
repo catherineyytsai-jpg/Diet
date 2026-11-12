@@ -481,9 +481,24 @@ function historyValueLabel(value,member,day,length){
   const goal=base+(member.user_id===currentUserId()?n(readDayActivity(day).extraKcal):0);
   return `${whole(value)} kcal${length===7&&base&&value>goal?` · 超標 ${whole(value-goal)} kcal`:''}`;
 }
+function historyBalance(member,start,end,baseline){
+  if(!baseline||member.user_id!==currentUserId())return null;
+  const values=[];
+  for(let day=start;day<=end;day=shiftDate(day,1)){
+    const meals=state.meals.filter(meal=>meal.day===day&&meal.items?.some(item=>getShare(item,member.user_id)>0));
+    if(meals.length)values.push(baseline+n(readDayActivity(day).extraKcal)-personTotals(meals,member.user_id).kcal);
+  }
+  return values.length?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length):null;
+}
+function balanceLabel(value){
+  return value===0?'收支相抵':`${value>0?'赤字':'盈餘'} ${whole(Math.abs(value))} kcal`;
+}
 function dailyHistory(){
   const length=state.historyRange||7, people=viewedMembers(), end=state.historyEnd||state.date;
   const series=historySeries(people,end,length);
+  const baseline=dailyExpenditure(readProfile());
+  const balances=series.map(row=>people.map(member=>historyBalance(member,row.start,row.end,baseline)));
+  const balanceMax=Math.max(1,...balances.flat().map(value=>Math.abs(value??0)));
   const max=Math.ceil(Math.max(500,...series.flatMap(row=>row.values))/500)*500;
   const x=i=>54+i*278/Math.max(1,series.length-1);
   const y=value=>138-value/max*118;
@@ -498,23 +513,35 @@ function dailyHistory(){
     <div class="trend-panels">${people.map((member,j)=>{
       const totals=series.map(row=>row.values[j]).filter(value=>value!==null);
       const average=totals.length?whole(totals.reduce((sum,value)=>sum+value,0)/totals.length)+' kcal':'未記錄';
+      const hasBalance=balances.some(row=>row[j]!==null);
       return `<div class="trend-person">
       <div class="trend-person-head"><strong>${escapeHtml(member.display_name)}</strong><span>${length===7&&totals.length?'日均 ':''}${length===7||!totals.length?average:''}</span></div>
-      <svg class="trend-plot" viewBox="0 0 350 166" role="img" aria-label="${escapeHtml(member.display_name)} 的熱量折線圖">
+      <svg class="trend-plot" viewBox="0 0 350 ${hasBalance?255:166}" role="img" aria-label="${escapeHtml(member.display_name)} 的攝取折線${hasBalance?'與熱量赤字長條圖':'圖'}">
       ${[0,.5,1].map(f=>`<line x1="52" y1="${y(max*f)}" x2="338" y2="${y(max*f)}" stroke="#dce8df"/><text x="46" y="${y(max*f)+4}" text-anchor="end">${whole(max*f)}</text>`).join('')}
-      ${labels.map(i=>`<text x="${x(i)}" y="158" text-anchor="middle">${dateLabel(series[i].end)}</text>`).join('')}
+      ${labels.map(i=>`<text x="${x(i)}" y="${hasBalance?247:158}" text-anchor="middle">${dateLabel(series[i].end)}</text>`).join('')}
       ${series.map(({values},i)=>{
         const value=values[j], previous=series[i-1]?.values[j];
         if(value===null)return '';
         return `${previous!=null?`<line x1="${x(i-1)}" y1="${y(previous)}" x2="${x(i)}" y2="${y(value)}" stroke="${palette[j]}" stroke-width="2.5"/>`:''}
           <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"><title>${dateLabel(series[i].end)} · ${whole(value)} kcal</title></circle>
           ${length===7?`<text x="${x(i)}" y="${y(value)-8}" text-anchor="middle">${whole(value)}</text>`:''}`;
-      }).join('')}</svg></div>`;
+      }).join('')}
+      ${hasBalance?`<text x="52" y="158">${length===7?'每日收支':'每週平均收支'}</text>
+      <line x1="52" x2="338" y1="198" y2="198" stroke="#a0b7a9"/><text x="46" y="202" text-anchor="end">0</text>
+      ${balances.map((row,i)=>{
+        const value=row[j];
+        if(value===null)return '';
+        const height=Math.max(2,Math.abs(value)/balanceMax*26);
+        const top=value>=0?198-height:198;
+        return `<rect x="${x(i)-7}" y="${top}" width="14" height="${height}" rx="2" fill="${value>=0?'#28765c':'#b65337'}"><title>${balanceLabel(value)}</title></rect>
+        ${length===7?`<text x="${x(i)}" y="${value>=0?top-4:top+height+11}" text-anchor="middle">${whole(Math.abs(value))}</text>`:''}`;
+      }).join('')}`:''}</svg>
+      <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
     }).join('')}</div>
     <details class="trend-details"><summary>查看數字</summary>
     ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
       <span>${dateLabel(start)}${start!==end?`–${dateLabel(end)}`:''}</span>
-      ${values.map((value,i)=>`<span>${escapeHtml(people[i].display_name)} · ${value===null?'未記錄':historyValueLabel(value,people[i],end,length)}</span>`).join('')}</button>`).join('')}
+      ${values.map((value,i)=>{const balance=historyBalance(people[i],start,end,baseline);return `<span>${escapeHtml(people[i].display_name)} · ${value===null?'未記錄':historyValueLabel(value,people[i],end,length)}${balance===null?'':` · ${balanceLabel(balance)}`}</span>`}).join('')}</button>`).join('')}
     </details></section>`;
 }
 function activityKey(day=state.date){
@@ -587,36 +614,27 @@ async function saveAdvice(form){
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 
-function dayBalanceCard(showProfile=false){
-  const member=currentMember(), user=currentUserId();
-  if(!member)return '';
-  if(!showProfile&&!viewedMembers().some(person=>person.user_id===user))return '';
-  const activity=readDayActivity(), baseline=dailyExpenditure(readProfile());
-  const extra=n(activity.extraKcal), expenditure=baseline?baseline+extra:null;
-  const own=mealsOnDay().filter(meal=>meal.items?.some(item=>getShare(item,user)>0));
-  const intake=personTotals(own,user).kcal, balance=expenditure&&own.length?expenditure-intake:null;
-  const max=Math.max(1,expenditure||0,intake);
-  const steps=activity.steps?`${whole(activity.steps)} 步`:'';
-  const exercises=(activity.entries||[]).map(entry=>`${entry.name}${entry.minutes?` ${entry.minutes} 分鐘`:''}`);
-  return `<section class="summary-card day-balance"><h3>${showProfile?'當日活動與熱量收支':'當日熱量收支'}</h3>
-    <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(member.display_name)}</p>
-    ${steps||exercises.length?`<p class="balance-activity">${[steps,...exercises].filter(Boolean).map(escapeHtml).join(' · ')}</p>`:''}
-    <div class="balance-values"><span>已記錄攝取 <strong>${own.length?whole(intake)+' kcal':'—'}</strong></span>
-    <span>估計總消耗 <strong>${expenditure?whole(expenditure)+' kcal':'—'}</strong></span></div>
-    ${extra?`<p class="tiny">總消耗含額外運動 ${whole(extra)} kcal</p>`:''}
-    ${balance!==null?`<div class="balance-track" aria-hidden="true"><span style="width:${Math.min(intake,expenditure)/max*100}%"></span><span class="${balance<0?'balance-surplus':'balance-deficit'}" style="width:${Math.abs(balance)/max*100}%"></span></div>
-    <p class="balance-result">估計${balance>=0?'赤字':'盈餘'} <strong>${whole(Math.abs(balance))} kcal</strong></p>`:
-    showProfile&&!baseline?'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>':'<p class="tiny">有攝取紀錄及估計消耗後即可顯示差額。</p>'}
-    </section>`;
+function expenditureCard(){
+  const baseline=dailyExpenditure(readProfile());
+  const extra=n(readDayActivity().extraKcal);
+  return `<section class="summary-card day-balance"><h3>當日熱量消耗</h3>
+    <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(currentMember()?.display_name||'')}</p>
+    <div class="balance-values expenditure-values">
+      <span>平常估計消耗 <strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
+      <span>額外活動消耗 <strong>${whole(extra)} kcal</strong></span>
+      <span>估計總消耗 <strong>${baseline?whole(baseline+extra)+' kcal':'—'}</strong></span>
+    </div>
+    ${baseline?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
+  </section>`;
 }
 function recordsPage(){
   const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','活動紀錄'],['advice','建議']];
   const active=state.recordTab||'meals', meals=viewedMeals();
   const contents={
     meals:()=>meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
-    calories:()=>dailyHistory()+dayBalanceCard(),
+    calories:dailyHistory,
     advice:advicePanel,
-    deficit:()=>dayBalanceCard(true)+activityForm()
+    deficit:()=>expenditureCard()+activityForm()
   };
   return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${['deficit','advice'].includes(active)?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
   <div class="meal-list">${contents[active]()}</div></main>`;

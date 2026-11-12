@@ -198,3 +198,8 @@
 }
 @keyframes journal-sheet-in {from {transform:translateY(24px);opacity:.6}to {transform:translateY(0);opacity:1}}
 @media(prefers-reduced-motion:reduce){.modal.journal-sheet {animation:none}}
+
+.trend-person .trend-plot {max-height:320px}
+.trend-person > .tiny {margin:4px 6px 10px}
+.expenditure-values {grid-template-columns:repeat(3,minmax(0,1fr))}
+.expenditure-values span:last-child {color:#215e49}
