@@ -136,8 +136,6 @@
 
 .member-card-link {appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:800;text-align:left;padding:4px 0;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;cursor:pointer}
 
-.day-arrows {display:flex;gap:4px}
-.day-arrows .btn {min-width:34px;min-height:42px;padding:0 7px;font-size:22px;line-height:1}
 .journal-header {flex-wrap:wrap}
 .journal-date-tools {margin-left:auto}
 .journal-nav .nav-button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
@@ -148,3 +146,10 @@
 #advice-form {display:grid;gap:8px}
 #advice-form textarea {resize:vertical;width:100%}
 #advice-form button {justify-self:start}
+
+.date-stepper {display:flex;align-items:center;min-width:0;background:#fff;border:1px solid #e3eae4;border-radius:12px}
+.date-stepper > button {flex:0 0 44px;min-height:44px;padding:0;border:0;background:transparent;color:#31594a;font-size:23px;line-height:1;cursor:pointer}
+.journal-header .date-stepper .date-pill {flex:1 1 auto;min-width:0;min-height:44px;padding:0 4px;background:transparent;border:0;border-radius:0}
+.date-stepper input {font-variant-numeric:tabular-nums;text-align:center}
+.journal-date-tools {gap:8px}
+.journal-date-tools .today-shortcut {border:0;background:transparent;color:#27634e;padding-inline:6px}

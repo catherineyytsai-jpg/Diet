@@ -107,7 +107,10 @@ function mobileNav(){
 }
 function datedHeader(title,id,brand=false){
   return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>
-    <div class="journal-date-tools"><div class="day-arrows"><button class="btn btn-outline btn-small" data-action="prev-day" aria-label="前一天">‹</button><button class="btn btn-outline btn-small" data-action="next-day" aria-label="後一天">›</button></div><label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
+    <div class="journal-date-tools"><div class="date-stepper" role="group" aria-label="日期切換">
+    <button type="button" data-action="prev-day" aria-label="前一天">‹</button>
+    <label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
+    <button type="button" data-action="next-day" aria-label="後一天">›</button></div>
     ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div></header>`;
 }
 function renderDashboard(){
