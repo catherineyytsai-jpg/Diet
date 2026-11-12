@@ -69,7 +69,7 @@ function alertBanner(){if(state.demo)return `<div class="banner banner-demo"><b>
 function topbar(){const names=orderedMembers();return `<div class="topbar"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate<span class="brand-sub">FOOD JOURNAL</span></span></div><div class="top-actions">${state.space?`<button class="btn btn-outline btn-small btn-hide-mobile" data-action="show-space">共用代碼</button>`:''}<button class="btn btn-outline btn-small install-trigger" data-action="show-install" aria-label="安裝到手機主畫面" title="加入手機主畫面">⌂ <span>加入手機</span></button><div class="avatar-pair">${names.map((m,i)=>`<span class="avatar" title="${escapeHtml(m.display_name)}">${escapeHtml((m.display_name||'?').slice(0,1))}</span>`).join('')}</div>${state.demo?'':`<button class="quiet" data-action="signout">登出</button>`}</div></div>`}
 function renderAuth(){app.innerHTML=`<div class="layout"><div class="auth-wrap"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate</span></div>${alertBanner()}<div class="auth-panel"><p class="eyebrow">SHARED FOOD JOURNAL</p><h1>${state.authMode==='login'?'歡迎回來':'建立你的帳號'}</h1><p>每天拍照記錄飲食，與另一個人共用完整熱量日記。</p><form id="auth-form"><div class="field"><label>電子郵件</label><input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div><div class="field"><label>密碼</label><input name="password" type="password" minlength="6" required placeholder="至少 6 碼" autocomplete="${state.authMode==='login'?'current-password':'new-password'}"></div><button class="btn btn-primary fill" type="submit">${state.authMode==='login'?'登入':'註冊'}</button></form><div class="toggle-line">${state.authMode==='login'?'還沒有帳號？':'已經有帳號？'} <button class="quiet" data-action="toggle-auth">${state.authMode==='login'?'建立帳號':'返回登入'}</button></div></div><p style="font-size:12px;text-align:center;margin-top:21px">照片只對同一個共用空間內的成員開放。</p></div></div>`}
 function renderWorkspace(){app.innerHTML=`<div class="layout">${topbar()}<div class="workspace-panel">${alertBanner()}<p class="eyebrow">SET UP YOUR SHARED SPACE</p><h1>開始記錄每一餐。</h1><p>建立空間後就能自己記餐，也可分享邀請碼，讓另一人加入同一份飲食日記。</p><div class="workspace-options"><div class="workspace-box"><h2>建立個人空間</h2><p>給自己取個稱呼，就可以開始記餐。</p><form id="create-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="我" maxlength="24" required></div><div class="field"><label>空間名稱</label><input name="spaceName" value="我們的餐桌" maxlength="40" required></div><button class="btn btn-primary fill" type="submit">建立雙人空間</button></form></div><div class="workspace-box"><h2>加入已有空間</h2><p>請對方分享邀請碼，輸入後即可一起紀錄。</p><form id="join-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="他" maxlength="24" required></div><div class="field"><label>8 碼邀請碼</label><input name="invite" class="code" maxlength="8" minlength="8" required placeholder="例如 A1B2C3D4" autocapitalize="characters"></div><button class="btn btn-outline fill" type="submit">加入空間</button></form></div></div></div></div>`}
-function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),goal=n(member.daily_goal),p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span>${escapeHtml(member.display_name||'成員')} <button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button></div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`每日目標 ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p><div class="progress"><div class="progress-fill ${i?'warm':''}" style="width:${p}%"></div></div><div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
+function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),goal=n(member.daily_goal),p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${goal&&t.kcal>goal?'summary-over':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span>${escapeHtml(member.display_name||'成員')} ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`每日目標 ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?energyBar(t.kcal,goal,Math.max(goal,t.kcal)):''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
 function mealPhotos(meal){
   return [meal.image_path,...(Array.isArray(meal.estimate_meta?.extraPhotos)?meal.estimate_meta.extraPhotos:[])].filter(Boolean);
 }
@@ -78,23 +78,45 @@ function mealPhoto(meal){
   const sources=mealPhotos(meal).map(photoSource).filter(Boolean);
   return sources.length?`<div class="meal-photo-strip">${sources.map(src=>`<img class="meal-pic" alt="餐點照片" loading="lazy" src="${escapeHtml(src)}">`).join('')}</div>`:'';
 }
-function mealCard(meal){const t=personTotals([meal],state.members[0].user_id),m2=state.members[1],t2=m2?personTotals([meal],m2.user_id):null;const title=(meal.items||[]).map(x=>x.name).filter(Boolean).slice(0,3).join('、')||'餐點';return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3><p class="note">${escapeHtml(meal.note||'已記錄這一餐')}</p><div class="meal-kcals"><span>${escapeHtml(state.members[0].display_name)} <b>${whole(t.kcal)} kcal</b></span>${m2?`<span>${escapeHtml(m2.display_name)} <b>${whole(t2.kcal)} kcal</b></span>`:''}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`}
-function chart(){const days=Array.from({length:7},(_,i)=>shiftDate(state.date,i-6));const values=days.map(day=>state.members.map(m=>personTotals(state.meals.filter(e=>e.day===day),m.user_id).kcal));const max=Math.max(1200,...values.flat());return `<div class="side-card"><h3>最近 7 天</h3><div class="chart">${days.map((day,i)=>`<div class="bar-col"><div class="bar-track" style="display:flex;align-items:end;gap:2px;background:transparent;max-width:36px"><div class="bar-fill ${day===state.date?'current':''}" style="width:50%;height:${Math.round(values[i][0]/max*100)}%"></div><div class="bar-fill" style="width:50%;height:${Math.round((values[i][1]||0)/max*100)}%;background:#ebb88a"></div></div><span class="bar-label">${day.slice(5).replace('-','/')}</span></div>`).join('')}</div><p class="chart-info"><span style="color:#398b63">●</span> ${escapeHtml(state.members[0]?.display_name||'我')}　<span style="color:#ebb88a">●</span> ${escapeHtml(state.members[1]?.display_name||'他')}　· 各日已紀錄熱量</p></div>`}
-function mobileNav(today,yesterday){
- const links=[['today','首頁',today],['add-meal','＋ 上傳'],['records','記錄'],['settings','設定']];
- return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label,date])=>`<button class="nav-button ${date===state.date?'active':''}" data-action="${action}">${label}</button>`).join('')}</nav>`;
+function viewedMembers(){
+  const people=orderedMembers();
+  const selected=people.find(person=>person.user_id===state.memberView);
+  return selected?[selected]:people;
+}
+function memberPicker(){
+  const people=orderedMembers();
+  if(people.length<2)return '';
+  const selected=viewedMembers().length===2?'all':state.memberView;
+  return `<div class="journal-controls" role="group" aria-label="選擇要查看的成員">
+    ${[['all','兩人'],...people.map(person=>[person.user_id,person.display_name])].map(([id,label])=>
+      `<button class="btn btn-small ${selected===id?'btn-primary':'btn-outline'}" aria-pressed="${selected===id}" data-action="member-view" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`).join('')}</div>`;
+}
+function viewedMeals(){
+  const meals=mealsOnDay(), people=viewedMembers();
+  if(people.length===state.members.length)return meals;
+  return meals.filter(meal=>meal.items?.some(item=>getShare(item,people[0].user_id)>0));
+}
+function mealCard(meal){
+  const title=(meal.items||[]).map(item=>item.name).filter(Boolean).slice(0,3).join('、')||'餐點';
+  return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
+}
+function mobileNav(){
+ const links=[['records','記錄'],['today','首頁'],['add-meal','＋ 上傳'],['settings','設定']];
+ const active=state.page==='records'?'records':'today';
+ return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}">${label}</button>`).join('')}</nav>`;
 }
 function renderDashboard(){
-  const today=dateKey(new Date()), yesterday=shiftDate(today,-1), meals=mealsOnDay();
+  const meals=viewedMeals();
+  if(state.page==='records'){app.innerHTML=`${recordsPage()}${mobileNav()}${state.modal?renderModal():''}`;return}
   app.innerHTML=`<main class="layout compact-dashboard">
     <header class="journal-header"><div><h1>FOOD JOURNAL</h1></div>
       <label class="date-pill"><input id="date-control" aria-label="選擇紀錄日期" type="date" value="${state.date}"></label></header>
     ${state.demo?'<p class="tiny">預覽模式 · 資料儲存在此瀏覽器</p>':state.notice?alertBanner():''}
-    <section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
-      <div class="summary-grid">${orderedMembers().map(summaryCard).join('')}</div></section>
+    ${memberPicker()}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
+      <div class="summary-grid">${viewedMembers().map(summaryCard).join('')}</div></section>
     <section id="meal-section"><div class="section-title"><h2>餐點紀錄</h2><small>${meals.length} 筆</small></div>
       <div class="meal-list">${meals.length?meals.map(mealCard).join(''):'<p class="compact-empty">這天還沒有餐點紀錄。</p>'}</div></section>
-    </main>${mobileNav(today,yesterday)}${state.modal?renderModal():''}`;
+    </main>${mobileNav()}${state.modal?renderModal():''}`;
 }
 function render(){const previousModalScroll=document.querySelector('.modal')?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');if(updatedModal)updatedModal.scrollTop=previousModalScroll}
 function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],estimated:meal?.estimate_meta||null}}
@@ -103,7 +125,7 @@ function formItem(i,item){const people=orderedMembers();return `<div class="edit
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('已加入手機主畫面')});
-function renderModal(){if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='records')return recordsModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
+function renderModal(){if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
@@ -159,13 +181,15 @@ async function setGoal(user){const member=state.members.find(m=>m.user_id===user
 document.addEventListener('submit',async e=>{if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
- else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;render()}
+ else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
  else if(action==='prev-day')await changeDay(shiftDate(state.date,-1));
  else if(action==='next-day')await changeDay(shiftDate(state.date,1));
- else if(action==='today')await changeDay(dateKey(new Date()));
+ else if(action==='today'){state.page='home';await changeDay(dateKey(new Date()))}
  else if(action==='yesterday')await changeDay(shiftDate(dateKey(new Date()),-1));
  else if(action==='add-meal')openNewForm(null);
- else if(['records','profile','settings'].includes(action)){state.modal=action;render()}
+ else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
+ else if(action==='member-view'){state.memberView=el.dataset.id;render()}
+ else if(['profile','settings'].includes(action)){state.modal=action;render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
  else if(action==='locate')fillLocation();
@@ -193,7 +217,8 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='save-meal')await saveMeal();
  else if(action==='delete-meal')await deleteMeal();
 });
-document.addEventListener('change',async e=>{if(e.target.id==='date-control'||e.target.id==='record-date')await changeDay(e.target.value);
+document.addEventListener('change',async e=>{if(e.target.id==='record-date')state.historyEnd=e.target.value;
+ if(e.target.id==='date-control'||e.target.id==='record-date')await changeDay(e.target.value);
  if(e.target.id==='form-date'&&state.currentForm)state.currentForm.dateEdited=true;
  if(e.target.id==='form-type'&&state.currentForm)state.currentForm.mealTypeEdited=true;
  if(['photo-camera','photo-gallery'].includes(e.target.id)){
@@ -342,30 +367,52 @@ function saveProfile(form){
   try{localStorage.setItem(profileKey(),JSON.stringify(p));render();toast('個人資料已儲存')}
   catch{toast('瀏覽器無法儲存個人資料')}
 }
-function dailyHistory(){
-  const user=currentUserId(), goal=n(currentMember()?.daily_goal);
-  const days=Array.from({length:7},(_,i)=>shiftDate(state.date,i-6));
-  const totals=days.map(day=>personTotals(state.meals.filter(meal=>meal.day===day),user).kcal);
-  const max=Math.max(1,goal,...totals);
-  return `<section aria-label="最近七天熱量圖表"><h3>最近七天熱量</h3><div class="daily-chart">${days.map((day,i)=>{
-    const total=totals[i], excess=goal?Math.max(0,total-goal):0;
-    return `<button class="daily-chart-row" data-action="history-day" data-day="${day}">
-      <span>${day.slice(5).replace('-','/')}</span><span class="daily-chart-track"><span class="${excess?'over-goal':''}" style="width:${total/max*100}%"></span></span>
-      <span>${whole(total)} kcal${excess?` · 超標 ${whole(excess)}`:''}</span></button>`;
-  }).join('')}</div></section>`;
+function energyBar(total,goal,max){
+  const base=goal?Math.min(total,goal):total;
+  const excess=goal?Math.max(0,total-goal):0;
+  return `<span class="daily-chart-track" aria-hidden="true">
+    <span style="width:${base/max*100}%"></span><span class="over-goal" style="width:${excess/max*100}%"></span>
+    ${goal?`<i class="goal-marker" style="left:${Math.min(99.5,goal/max*100)}%"></i>`:''}</span>`;
 }
-function recordsModal(){
+function dailyHistory(){
+  const days=Array.from({length:7},(_,i)=>shiftDate(state.historyEnd||state.date,i-6));
+  const people=viewedMembers();
+  const rows=days.map(day=>{
+    const meals=state.meals.filter(meal=>meal.day===day);
+    return {day,values:people.map(member=>{
+      const own=meals.filter(meal=>meal.items?.some(item=>getShare(item,member.user_id)>0));
+      return {member,total:personTotals(own,member.user_id).kcal,goal:n(member.daily_goal),hasMeals:own.length>0};
+    })};
+  });
+  const max=Math.max(1,...rows.flatMap(row=>row.values.flatMap(value=>[value.total,value.goal])));
+  return `<section aria-label="七日熱量圖表"><h3>七日熱量趨勢</h3><p class="tiny">刻線為每日目標，紅色為超標的部分。</p><div class="daily-chart">${rows.map(({day,values})=>
+    `<button class="daily-chart-row" data-action="history-day" data-day="${day}" aria-pressed="${day===state.date}"><span>${day.slice(5).replace('-','/')}</span>
+    <span class="daily-chart-values">${values.map(({member,total,goal,hasMeals})=>`<span class="daily-chart-value">
+      <span>${escapeHtml(member.display_name)} · ${hasMeals?`${whole(total)} kcal${goal&&total>goal?` · 超標 ${whole(total-goal)} kcal`:''}`:'未記錄'}</span>
+      ${energyBar(total,goal,max)}</span>`).join('')}</span></button>`).join('')}</div></section>`;
+}
+function recordsPage(){
   const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','赤字紀錄']];
-  const active=state.recordTab||'meals', meals=mealsOnDay(), user=currentUserId();
-  const own=meals.filter(meal=>meal.items?.some(item=>getShare(item,user)>0));
+  const active=state.recordTab||'meals', meals=viewedMeals(), user=currentUserId();
+  const own=mealsOnDay().filter(meal=>meal.items?.some(item=>getShare(item,user)>0));
   const intake=personTotals(own,user).kcal, expenditure=dailyExpenditure(readProfile()), balance=expenditure-intake;
   const contents={
-    meals:dailyHistory()+(meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>'),
-    calories:meals.length?orderedMembers().map(member=>`<p>${escapeHtml(member.display_name)}　${whole(personTotals(meals,member.user_id).kcal)} kcal</p>`).join(''):'<p>這天還沒有熱量紀錄。</p>',
+    meals:meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
+    calories:dailyHistory(),
     deficit:!expenditure?'<button class="btn btn-outline" data-action="profile">設定個人資料以估算每日消耗</button>':`<p>估計每日消耗 ${whole(expenditure)} kcal</p>${own.length?`<p>已記錄攝取 ${whole(intake)} kcal</p><p><strong>${balance>=0?'估計赤字':'估計盈餘'} ${whole(Math.abs(balance))} kcal</strong></p><p class="tiny">依目前個人資料與當日已記錄的餐點估算。</p>`:'<p>這天還沒有你的餐點紀錄。</p>'}`
   };
-  return journalModal('記錄',`<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
-  <label class="field">查看日期<input type="date" id="record-date" value="${state.date}"></label><div class="meal-list">${contents[active]}</div>`);
+  return `<main class="layout compact-dashboard"><header class="journal-header"><h1>記錄</h1></header>${active==='deficit'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
+  <label class="field">查看日期<input type="date" id="record-date" value="${state.date}"></label><div class="meal-list">${contents[active]}</div></main>`;
 }
+
+document.addEventListener('visibilitychange',async ()=>{
+  if(document.hidden||!client||!state.session||!state.space||state.modal)return;
+  const spaceId=state.space.id;
+  const {data,error}=await client.from('memberships').select('space_id, slot, display_name, daily_goal, user_id').eq('space_id',spaceId);
+  if(!error&&data?.length&&state.space?.id===spaceId&&!state.modal){
+    state.members=data;
+    render();
+  }
+});
 
 boot();
