@@ -97,7 +97,8 @@ function renderDashboard(){
     </main>${mobileNav(today,yesterday)}${state.modal?renderModal():''}`;
 }
 function render(){const previousModalScroll=document.querySelector('.modal')?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');if(updatedModal)updatedModal.scrollTop=previousModalScroll}
-function openNewForm(meal){const editing=!!meal;state.currentForm={id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],estimated:meal?.estimate_meta||null};state.modal='meal';render()}
+function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],estimated:meal?.estimate_meta||null}}
+function openNewForm(meal){state.photoDrafts=[];state.currentForm=makeMealDraft(meal);state.modal='meal';render()}
 function formItem(i,item){const people=orderedMembers();return `<div class="editor-item" data-item="${i}"><div class="editor-top"><input aria-label="食物名稱" data-field="name" data-index="${i}" value="${escapeHtml(item.name)}" placeholder="食物名稱"><button class="quiet" data-action="remove-item" data-index="${i}">移除</button></div><div class="mini-grid">${[['kcal','熱量 kcal'],['protein_g','蛋白質 g'],['carbs_g','碳水 g'],['fat_g','脂肪 g']].map(([field,label])=>`<label>${label}<input type="number" min="0" step="0.1" data-field="${field}" data-index="${i}" value="${n(item[field])}"></label>`).join('')}</div><div class="split-grid">${people.map(p=>`<label>${people.length>1?`<strong class="portion-person">${escapeHtml(p.display_name)}</strong>`:''}吃了多少%<input type="number" inputmode="numeric" min="0" max="100" data-share-user="${p.user_id}" data-index="${i}" value="${Math.round(safePercent(item.shares?.[p.user_id]||0))}"></label>`).join('')}</div>${item.portion?`<div class="tiny">AI 推估份量：${escapeHtml(item.portion)}</div>`:''}<div class="tiny">食用百分比合計不可超過 100%；未分配的部分視為剩餘食物。</div></div>`}
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event});
@@ -106,7 +107,7 @@ function renderModal(){if(state.modal==='settings')return settingsModal();if(sta
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
- return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal meal-editor" role="dialog" aria-modal="true" aria-label="餐點編輯"><div class="meal-editor-body"><div class="modal-head"><div><p class="eyebrow">${f.id?'EDIT YOUR MEAL':'ADD A NEW MEAL'}</p><h2>${f.id?'修改這餐':'記錄一餐'}</h2></div><button class="x" data-action="close-modal">×</button></div><div class="field"><label>餐點照片</label><div class="photo-box">${f.photos.length?`<div class="meal-photo-grid">${f.photos.map((path,i)=>`<div>${photoSource(path)?`<img class="upload-preview" src="${escapeHtml(photoSource(path))}" alt="餐點照片 ${i+1}">`:''}<button class="quiet" data-action="remove-photo" data-index="${i}">移除照片 ${i+1}</button></div>`).join('')}</div>`:'<p>可加入最多 6 張照片</p>'}<div class="photo-buttons"><label class="photo-option photo-camera"><span aria-hidden="true">◉</span><span>開啟相機</span><input id="photo-camera" type="file" accept="image/*" capture="environment"></label><label class="photo-option photo-gallery"><span aria-hidden="true">▣</span><span>從相簿選擇</span><input id="photo-gallery" type="file" multiple accept="image/*"></label></div></div></div><div class="field"><label>補充說明</label><input id="form-note" maxlength="500" value="${escapeHtml(f.note)}" placeholder="例如：飯只吃一半、飲料有糖"></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-soft" data-action="analyze" ${!f.photos.length?'disabled':''}>分析餐點</button>${f.estimated?.min_kcal!=null?`<span class="estimate-pill">推估範圍 ${whole(f.estimated.min_kcal)}–${whole(f.estimated.max_kcal)} kcal</span>`:''}</div>${f.estimated?.assumption?`<p style="font-size:12px;margin:8px 0">估算假設：${escapeHtml(f.estimated.assumption)}</p>`:''}<div class="form-grid"><div class="field"><label>用餐日期</label><input id="form-date" type="date" value="${f.day}"></div><div class="field"><label>餐別</label><select id="form-type">${['breakfast','lunch','dinner','snack'].map(t=>`<option value="${t}" ${t===f.meal_type?'selected':''}>${mealNames(t)}</option>`).join('')}</select></div></div><div class="form-grid"><div class="field"><label>用餐地點（選填）</label><input id="form-restaurant" maxlength="100" value="${escapeHtml(f.restaurant)}" placeholder="餐廳、家裡或地址"><button class="btn btn-outline btn-small" data-action="locate">使用目前位置</button></div></div><hr class="divider"><div class="section-title" style="margin-top:0"><h3>食物與熱量明細</h3><button class="btn btn-outline btn-small" data-action="add-item">＋ 新增一項</button></div><p class="tiny" style="margin-top:-8px">每一項食物的總熱量先填在左邊，再分配各自實際吃掉的百分比。</p>${f.items.map((item,i)=>formItem(i,item)).join('')||'<p>請新增至少一項食物。</p>'}<div class="split-preview">${sums.map(({member,total})=>`<span>${escapeHtml(member.display_name)}：${whole(total.kcal)} kcal</span>`).join('')}</div></div><div class="modal-actions">${f.id?`<button class="btn btn-danger" data-action="delete-meal">刪除紀錄</button>`:'<span></span>'}<div style="display:flex;gap:8px"><button class="btn btn-outline" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="save-meal">儲存這一餐</button></div></div></div></div>`}
+ return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal meal-editor" role="dialog" aria-modal="true" aria-label="餐點編輯"><div class="meal-editor-body"><div class="modal-head"><div><p class="eyebrow">${f.id?'EDIT YOUR MEAL':'ADD A NEW MEAL'}</p><h2>${f.id?'修改這餐':'記錄一餐'}</h2></div><button class="x" data-action="close-modal">×</button></div><div class="field"><label>餐點照片</label>${draftNavigation(f)}<div class="photo-box">${f.photos.length?`<div class="meal-photo-grid">${f.photos.map((path,i)=>`<div>${photoSource(path)?`<img class="upload-preview" src="${escapeHtml(photoSource(path))}" alt="餐點照片 ${i+1}">`:''}<button class="quiet" data-action="remove-photo" data-index="${i}">移除照片 ${i+1}</button></div>`).join('')}</div>`:'<p>每餐最多 6 張。選取不同時間的照片可拆成多餐。</p>'}<div class="photo-buttons"><label class="photo-option photo-camera"><span aria-hidden="true">◉</span><span>開啟相機</span><input id="photo-camera" type="file" accept="image/*" capture="environment"></label><label class="photo-option photo-gallery"><span aria-hidden="true">▣</span><span>從相簿選擇</span><input id="photo-gallery" type="file" multiple accept="image/*"></label></div></div></div><div class="field"><label>補充說明</label><input id="form-note" maxlength="500" value="${escapeHtml(f.note)}" placeholder="例如：飯只吃一半、飲料有糖"></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-soft" data-action="analyze" ${!f.photos.length?'disabled':''}>分析餐點</button>${f.estimated?.min_kcal!=null?`<span class="estimate-pill">推估範圍 ${whole(f.estimated.min_kcal)}–${whole(f.estimated.max_kcal)} kcal</span>`:''}</div>${f.estimated?.assumption?`<p style="font-size:12px;margin:8px 0">估算假設：${escapeHtml(f.estimated.assumption)}</p>`:''}<div class="form-grid"><div class="field"><label>用餐日期</label><input id="form-date" type="date" value="${f.day}"></div><div class="field"><label>餐別</label><select id="form-type">${['breakfast','lunch','dinner','snack'].map(t=>`<option value="${t}" ${t===f.meal_type?'selected':''}>${mealNames(t)}</option>`).join('')}</select></div></div><div class="form-grid"><div class="field"><label>用餐地點（選填）</label><input id="form-restaurant" maxlength="100" value="${escapeHtml(f.restaurant)}" placeholder="餐廳、家裡或地址"><button class="btn btn-outline btn-small" data-action="locate">使用目前位置</button></div></div><hr class="divider"><div class="section-title" style="margin-top:0"><h3>食物與熱量明細</h3><button class="btn btn-outline btn-small" data-action="add-item">＋ 新增一項</button></div><p class="tiny" style="margin-top:-8px">每一項食物的總熱量先填在左邊，再分配各自實際吃掉的百分比。</p>${f.items.map((item,i)=>formItem(i,item)).join('')||'<p>請新增至少一項食物。</p>'}<div class="split-preview">${sums.map(({member,total})=>`<span>${escapeHtml(member.display_name)}：${whole(total.kcal)} kcal</span>`).join('')}</div></div><div class="modal-actions">${f.id?`<button class="btn btn-danger" data-action="delete-meal">刪除紀錄</button>`:'<span></span>'}<div style="display:flex;gap:8px"><button class="btn btn-outline" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="save-meal">儲存這一餐</button></div></div></div></div>`}
 function collectFormBasic(){const f=state.currentForm;if(!f)return;f.day=$('form-date')?.value||f.day;f.meal_type=$('form-type')?.value||f.meal_type;f.restaurant=$('form-restaurant')?.value||'';f.note=$('form-note')?.value||''}
 async function photoToDataUrl(file){if(!file.type.startsWith('image/'))throw new Error('請選擇圖片檔案');if(file.size>20*1024*1024)throw new Error('原始照片不可超過 20MB');
  const objectUrl=URL.createObjectURL(file);const img=new Image();try{img.src=objectUrl;await img.decode();}catch{URL.revokeObjectURL(objectUrl);throw new Error('無法讀取照片，請改用 JPG、PNG 或 WebP 格式。')}
@@ -145,7 +146,10 @@ async function saveMeal(){collectFormBasic();const f=state.currentForm;if(!f.ite
  else{let response;if(f.id)response=await client.from('meals').update(meal).eq('id',f.id).eq('space_id',state.space.id);else response=await client.from('meals').insert({...meal,space_id:state.space.id,created_by:currentUserId()});if(response.error)throw response.error;committed=true;state.date=f.day;
  try{await loadMeals()}catch{state.modal=null;state.currentForm=null;render();return toast('已儲存到雲端，請重新整理以載入餐點')}}
  if(!state.demo){const removed=f.originalPhotos.filter(path=>!paths.includes(path));if(removed.length)await client.storage.from('meal-photos').remove(removed)}
- state.modal=null;state.currentForm=null;state.date=f.day;render();toast('餐點已儲存');
+ state.photoDrafts=(state.photoDrafts||[]).filter(draft=>draft!==f);
+ state.currentForm=state.photoDrafts[0]||null;
+ state.modal=state.currentForm?'meal':null;
+ state.date=f.day;render();toast(state.currentForm?'這餐已儲存，請確認下一餐':'餐點已儲存');
  }catch(e){if(uploaded.length&&!committed)await client.storage.from('meal-photos').remove(uploaded).catch(()=>{});toast(friendlyError(e))}finally{setBusy(false)}}
 async function deleteMeal(){const f=state.currentForm;if(!f?.id||!confirm('確定要刪除這筆餐點紀錄嗎？'))return;setBusy(true);try{if(state.demo){state.meals=state.meals.filter(m=>m.id!==f.id);demoWrite()}else{const {error}=await client.from('meals').delete().eq('id',f.id).eq('space_id',state.space.id);if(error)throw error;await loadMeals();if(f.originalPhotos.length)await client.storage.from('meal-photos').remove(f.originalPhotos)}state.modal=null;state.currentForm=null;render();toast('已刪除餐點')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 async function authSubmit(form){const fd=new FormData(form),email=String(fd.get('email')).trim(),password=String(fd.get('password'));setBusy(true);try{if(state.authMode==='login'){const {data,error}=await client.auth.signInWithPassword({email,password});if(error)throw error;state.session=data.session;await loadWorkspace();state.notice='';render()}else{const {data,error}=await client.auth.signUp({email,password});if(error)throw error;if(data.session){state.session=data.session;await loadWorkspace();render()}else toast('註冊完成，請到信箱點擊驗證連結，之後再登入')}}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
@@ -174,10 +178,14 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='show-install'){state.modal='install';render()}
  else if(action==='native-install'&&deferredInstallPrompt){const install=deferredInstallPrompt;deferredInstallPrompt=null;install.prompt();await install.userChoice.catch(()=>{});state.modal=null;render()}
  else if(action==='edit-meal'){const meal=state.meals.find(m=>m.id===el.dataset.id);if(meal)openNewForm(meal)}
- else if(action==='close-modal'){state.modal=null;state.currentForm=null;render()}
+ else if(action==='close-modal'){
+   if(state.photoDrafts?.length>1&&!confirm('要關閉並放棄尚未儲存的餐點草稿嗎？'))return;
+   state.photoDrafts=[];state.modal=null;state.currentForm=null;render();
+ }
  else if(action==='show-space'){state.modal='space';render()}
  else if(action==='copy-code'){try{await navigator.clipboard.writeText(state.space.invite_code);toast('邀請碼已複製')}catch{toast('無法自動複製，請手動選取邀請碼')}}
  else if(action==='goal')await setGoal(el.dataset.user);
+ else if(action==='photo-draft'){collectFormBasic();state.currentForm=state.photoDrafts[Number(el.dataset.index)];render()}
  else if(action==='remove-photo'){collectFormBasic();state.currentForm.photos.splice(Number(el.dataset.index),1);render()}
  else if(action==='analyze')await estimatePhoto();
  else if(action==='add-item'){collectFormBasic();state.currentForm.items.push(defaultItem());render()}
@@ -192,17 +200,29 @@ document.addEventListener('change',async e=>{if(e.target.id==='date-control'||e.
    const files=Array.from(e.target.files||[]);
    const form=state.currentForm;
    if(!form||!files.length)return;
-   if(form.photos.length+files.length>6){e.target.value='';return toast('每餐最多 6 張照片')}
+   const batch=!form.id&&!form.photos.length&&files.length>1;
+   const limit=batch?24:6;
+   if(form.photos.length+files.length>limit){e.target.value='';return toast(`這次最多可加入 ${limit} 張照片`)}
    collectFormBasic();setBusy(true);
    try{
      const photos=[];
-     for(const file of files)photos.push(await photoToDataUrl(file));
-     if(!form.id&&!form.photos.length){
-       const taken=await photoDate(files[0],e.target.id==='photo-camera');
-       if(taken&&!form.dateEdited)form.day=dateKey(taken);
-       if(!form.mealTypeEdited)form.meal_type=mealTypeAt(taken||new Date());
+     for(const file of files)photos.push({image:await photoToDataUrl(file),taken:await photoDate(file,e.target.id==='photo-camera')});
+     if(batch){
+       const groups=groupMealPhotos(photos);
+       const drafts=groups.map((group,i)=>{
+         const draft=i===0?form:makeMealDraft();
+         draft.photos=group.map(photo=>photo.image);
+         draft.photoTimeUnknown=!group[0].taken;
+         setDraftTime(draft,group[0].taken);
+         return draft;
+       });
+       const previous=state.photoDrafts||[];
+       state.photoDrafts=previous.includes(form)?previous.flatMap(draft=>draft===form?drafts:[draft]):drafts;
+     }else{
+       if(!form.id&&!form.photos.length)setDraftTime(form,photos[0].taken);
+       form.photos.push(...photos.map(photo=>photo.image));
      }
-     form.photos.push(...photos);form.estimated=null;render();
+     form.estimated=null;render();
    }catch(err){toast(friendlyError(err))}finally{setBusy(false)}
  }
  if(!state.currentForm)return;
@@ -229,6 +249,30 @@ function mealTypeAt(date) {
   if (hour >= 11 && hour < 15) return 'lunch';
   if (hour >= 17 && hour < 22) return 'dinner';
   return 'snack';
+}
+
+function setDraftTime(draft,taken){
+  if(!taken)return;
+  if(!draft.dateEdited)draft.day=dateKey(taken);
+  if(!draft.mealTypeEdited)draft.meal_type=mealTypeAt(taken);
+}
+function groupMealPhotos(photos){
+  const known=photos.filter(photo=>photo.taken).sort((a,b)=>a.taken-b.taken);
+  const groups=[];
+  for(const photo of known){
+    const group=groups.at(-1), first=group?.[0]?.taken;
+    if(first&&group.length<6&&dateKey(first)===dateKey(photo.taken)&&
+      mealTypeAt(first)===mealTypeAt(photo.taken)&&photo.taken-first<=90*60*1000){
+      group.push(photo);
+    }else groups.push([photo]);
+  }
+  return groups.concat(photos.filter(photo=>!photo.taken).map(photo=>[photo]));
+}
+function draftNavigation(form){
+  const drafts=state.photoDrafts||[];
+  const buttons=drafts.length>1?`<div class="journal-controls">${drafts.map((draft,i)=>
+    `<button class="btn btn-small ${draft===form?'btn-primary':'btn-outline'}" data-action="photo-draft" data-index="${i}" aria-pressed="${draft===form}">${draft.photoTimeUnknown?`待確認 ${i+1}`:`${dayLabel(draft.day)} ${mealNames(draft.meal_type)} · ${i+1}`}</button>`).join('')}</div>`:'';
+  return buttons+(form.photoTimeUnknown?'<p class="tiny">這張照片沒有可讀取的拍攝時間，請確認日期和餐別。</p>':'');
 }
 
 async function photoDate(file, camera) {
