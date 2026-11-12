@@ -101,13 +101,13 @@ function mealCard(meal){
   return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
- const links=[['records','記錄'],['home','首頁'],['add-meal','＋ 上傳'],['settings','設定']];
+ const links=[['records','記錄','▤'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙']];
  const active=state.page==='records'?'records':'home';
- return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}">${label}</button>`).join('')}</nav>`;
+ return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label,icon])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}"><span class="nav-symbol" aria-hidden="true">${icon}</span><span>${label}</span></button>`).join('')}</nav>`;
 }
 function datedHeader(title,id,brand=false){
   return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>
-    <div class="journal-date-tools"><label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
+    <div class="journal-date-tools"><div class="day-arrows"><button class="btn btn-outline btn-small" data-action="prev-day" aria-label="前一天">‹</button><button class="btn btn-outline btn-small" data-action="next-day" aria-label="後一天">›</button></div><label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
     ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div></header>`;
 }
 function renderDashboard(){
@@ -123,7 +123,7 @@ function renderDashboard(){
     </main>${mobileNav()}${state.modal?renderModal():''}`;
 }
 function render(){const previousModalScroll=document.querySelector('.modal')?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');if(updatedModal)updatedModal.scrollTop=previousModalScroll}
-function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],estimated:meal?.estimate_meta||null}}
+function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],dailyAdvice:meal?.estimate_meta?.dailyAdvice||'',estimated:meal?.estimate_meta||null}}
 function openNewForm(meal){state.photoDrafts=[];state.currentForm=makeMealDraft(meal);state.modal='meal';render()}
 function formItem(i,item){const people=orderedMembers();return `<div class="editor-item" data-item="${i}"><div class="editor-top"><input aria-label="食物名稱" data-field="name" data-index="${i}" value="${escapeHtml(item.name)}" placeholder="食物名稱"><button class="quiet" data-action="remove-item" data-index="${i}">移除</button></div><div class="mini-grid">${[['kcal','熱量 kcal'],['protein_g','蛋白質 g'],['carbs_g','碳水 g'],['fat_g','脂肪 g']].map(([field,label])=>`<label>${label}<input type="number" min="0" step="0.1" data-field="${field}" data-index="${i}" value="${n(item[field])}"></label>`).join('')}</div><div class="split-grid">${people.map(p=>`<label>${people.length>1?`<strong class="portion-person">${escapeHtml(p.display_name)}</strong>`:''}吃了多少%<input type="number" inputmode="numeric" min="0" max="100" data-share-user="${p.user_id}" data-index="${i}" value="${Math.round(safePercent(item.shares?.[p.user_id]||0))}"></label>`).join('')}</div>${item.portion?`<div class="tiny">AI 推估份量：${escapeHtml(item.portion)}</div>`:''}<div class="tiny">食用百分比合計不可超過 100%；未分配的部分視為剩餘食物。</div></div>`}
 let deferredInstallPrompt=null;
@@ -167,7 +167,7 @@ async function saveMeal(){collectFormBasic();const f=state.currentForm;if(!f.ite
    if(state.demo||!photo.startsWith('data:')){paths.push(photo);continue}
    const path=await uploadPhoto(photo);uploaded.push(path);paths.push(path);
  }
- const meal={day:f.day,meal_type:f.meal_type,note:f.note,restaurant:f.restaurant,image_path:paths[0]||null,items:f.items,estimate_meta:{...f.estimated,extraPhotos:paths.slice(1)}};
+ const meal={day:f.day,meal_type:f.meal_type,note:f.note,restaurant:f.restaurant,image_path:paths[0]||null,items:f.items,estimate_meta:{...f.estimated,extraPhotos:paths.slice(1),...(f.dailyAdvice?{dailyAdvice:f.dailyAdvice}:{})}};
  if(state.demo){if(f.id){const i=state.meals.findIndex(m=>m.id===f.id);if(i>=0)state.meals[i]={...state.meals[i],...meal}}else state.meals.unshift({...meal,id:newUUID(),created_at:new Date().toISOString(),created_by:currentUserId(),space_id:'demo'});demoWrite()}
  else{let response;if(f.id)response=await client.from('meals').update(meal).eq('id',f.id).eq('space_id',state.space.id);else response=await client.from('meals').insert({...meal,space_id:state.space.id,created_by:currentUserId()});if(response.error)throw response.error;committed=true;state.date=f.day;
  try{await loadMeals()}catch{state.modal=null;state.currentForm=null;render();return toast('已儲存到雲端，請重新整理以載入餐點')}}
@@ -212,12 +212,14 @@ async function saveGoal(form){
     toast('每日目標已更新');
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
-document.addEventListener('submit',async e=>{if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
+document.addEventListener('submit',async e=>{if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
- else if(action==='prev-day')await changeDay(shiftDate(state.date,-1));
- else if(action==='next-day')await changeDay(shiftDate(state.date,1));
+ else if(action==='prev-day'||action==='next-day'){
+   const day=shiftDate(state.date,action==='prev-day'?-1:1);
+   state.historyEnd=day;await changeDay(day);
+ }
  else if(action==='home'){state.page='home';render()}
  else if(action==='today'){
    const today=dateKey(new Date());
@@ -480,17 +482,52 @@ function activityForm(){
     <button class="btn btn-outline btn-small">儲存活動</button></form>`;
 }
 
+function adviceMeal(){
+  const meals=mealsOnDay();
+  return meals.find(meal=>meal.estimate_meta?.dailyAdvice)||meals.at(-1);
+}
+function advicePanel(){
+  const meal=adviceMeal();
+  if(!meal)return '<p class="compact-empty">這天有餐點紀錄後，就可以留下建議。</p>';
+  const advice=meal.estimate_meta?.dailyAdvice||'';
+  return `<section class="summary-card advice-card"><h3>當日飲食建議</h3>
+    ${advice?`<p class="advice-text">${escapeHtml(advice)}</p>`:'<p class="tiny">這天還沒有建議。</p>'}
+    <form id="advice-form">
+      <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
+      <textarea id="advice-text" name="advice" rows="4" maxlength="1800" required>${escapeHtml(advice)}</textarea>
+      <button class="btn btn-primary btn-small" type="submit">儲存建議</button></form></section>`;
+}
+async function saveAdvice(form){
+  const meal=adviceMeal(), advice=String(new FormData(form).get('advice')||'').trim();
+  if(!meal||!advice||advice.length>1800||state.busy)return;
+  setBusy(true);
+  try{
+    const meta={...meal.estimate_meta,dailyAdvice:advice};
+    if(!state.demo){
+      const {data,error}=await client.from('meals').select('estimate_meta').eq('id',meal.id).eq('space_id',state.space.id).single();
+      if(error)throw error;
+      Object.assign(meta,data.estimate_meta,{dailyAdvice:advice});
+      const update=await client.from('meals').update({estimate_meta:meta}).eq('id',meal.id).eq('space_id',state.space.id).select('id').single();
+      if(update.error)throw update.error;
+    }
+    meal.estimate_meta=meta;
+    if(state.demo)demoWrite();
+    render();toast('建議已儲存');
+  }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
+}
+
 function recordsPage(){
-  const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','赤字紀錄']];
+  const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','赤字紀錄'],['advice','建議']];
   const active=state.recordTab||'meals', meals=viewedMeals(), user=currentUserId();
   const own=mealsOnDay().filter(meal=>meal.items?.some(item=>getShare(item,user)>0));
   const intake=personTotals(own,user).kcal, baseline=dailyExpenditure(readProfile()), extra=n(readDayActivity().extraKcal), expenditure=baseline?baseline+extra:null, balance=expenditure-intake;
   const contents={
     meals:meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
     calories:dailyHistory(),
+    advice:advicePanel(),
     deficit:activityForm()+(!expenditure?'<button class="btn btn-outline" data-action="profile">設定個人資料以估算每日消耗</button>':`<p>估計總消耗 ${whole(expenditure)} kcal${extra?`（含額外運動 ${whole(extra)} kcal）`:''}</p>${own.length?`<p>已記錄攝取 ${whole(intake)} kcal</p><p><strong>${balance>=0?'估計赤字':'估計盈餘'} ${whole(Math.abs(balance))} kcal</strong></p><p class="tiny">依目前個人資料與當日已記錄的餐點估算。</p>`:'<p>這天還沒有你的餐點紀錄。</p>'}`)
   };
-  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${active==='deficit'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
+  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${['deficit','advice'].includes(active)?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
   <div class="meal-list">${contents[active]}</div></main>`;
 }
 

@@ -135,3 +135,16 @@
 @media(max-width:390px) {.journal-header {flex-wrap:wrap}.journal-date-tools {margin-left:auto}}
 
 .member-card-link {appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:800;text-align:left;padding:4px 0;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;cursor:pointer}
+
+.day-arrows {display:flex;gap:4px}
+.day-arrows .btn {min-width:34px;min-height:42px;padding:0 7px;font-size:22px;line-height:1}
+.journal-header {flex-wrap:wrap}
+.journal-date-tools {margin-left:auto}
+.journal-nav .nav-button {display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.nav-symbol {font-size:22px;line-height:1}
+.advice-card {min-height:0;width:100%}
+.advice-card h3 {margin-top:0}
+.advice-text {white-space:pre-wrap;overflow-wrap:anywhere}
+#advice-form {display:grid;gap:8px}
+#advice-form textarea {resize:vertical;width:100%}
+#advice-form button {justify-self:start}
