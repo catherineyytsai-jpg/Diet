@@ -178,7 +178,7 @@ async function authSubmit(form){const fd=new FormData(form),email=String(fd.get(
 async function spaceSubmit(form,isCreate){const fd=new FormData(form);const nickname=String(fd.get('nickname')||'').trim();setBusy(true);try{let response;if(isCreate)response=await client.rpc('create_shared_space',{p_space_name:String(fd.get('spaceName')||'我們的餐桌'),p_display_name:nickname});else response=await client.rpc('join_shared_space',{p_invite_code:String(fd.get('invite')||'').trim().toUpperCase(),p_display_name:nickname});if(response.error)throw response.error;await loadWorkspace();render();toast(isCreate?'已建立雙人空間，請分享邀請碼':'已加入雙人空間')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 async function setGoal(user){const member=state.members.find(m=>m.user_id===user);if(!member)return;if(!state.demo&&user!==currentUserId())return toast('每個人只能修改自己的目標');const input=prompt(`每日熱量目標(kcal)\n留空可取消目標`,member.daily_goal||'');if(input===null)return;const val=input.trim()===''?null:Math.round(n(input));if(val!==null&&(val<500||val>10000))return toast('請輸入 500～10,000 kcal，或留空取消');
  if(state.demo){member.daily_goal=val;try{localStorage.setItem('daily-plate-demo-goals',JSON.stringify(Object.fromEntries(state.members.map(m=>[m.user_id,m.daily_goal]))))}catch{}render();return}setBusy(true);try{const {error}=await client.from('memberships').update({daily_goal:val}).eq('user_id',user).eq('space_id',state.space.id);if(error)throw error;member.daily_goal=val;render();toast('每日目標已更新')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
-document.addEventListener('submit',async e=>{if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
+document.addEventListener('submit',async e=>{if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
@@ -391,15 +391,37 @@ function dailyHistory(){
       <span>${escapeHtml(member.display_name)} · ${hasMeals?`${whole(total)} kcal${goal&&total>goal?` · 超標 ${whole(total-goal)} kcal`:''}`:'未記錄'}</span>
       ${energyBar(total,goal,max)}</span>`).join('')}</span></button>`).join('')}</div></section>`;
 }
+function activityKey(){
+  return `daily-plate-activity-${currentUserId()}-${state.date}`;
+}
+function readDayActivity(){
+  try{return JSON.parse(localStorage.getItem(activityKey()))||{}}catch{return {}}
+}
+function saveDayActivity(form){
+  const fields=new FormData(form);
+  const activity={steps:n(fields.get('steps')),extraKcal:n(fields.get('extraKcal'))};
+  try{localStorage.setItem(activityKey(),JSON.stringify(activity));render();toast('活動紀錄已儲存')}
+  catch{toast('瀏覽器無法儲存活動紀錄')}
+}
+function activityForm(){
+  const {steps,extraKcal}=readDayActivity();
+  return `<form id="activity-form" class="summary-card">
+    <h3>當日活動</h3><div class="form-grid">
+    <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
+    <label class="field">額外運動消耗（kcal）<input name="extraKcal" type="number" min="0" step="1" value="${extraKcal??''}" inputmode="numeric"></label></div>
+    <p class="tiny">只填平常活動量以外的消耗。步數與活動紀錄儲存在此瀏覽器。</p>
+    <button class="btn btn-outline btn-small">儲存活動</button></form>`;
+}
+
 function recordsPage(){
   const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','赤字紀錄']];
   const active=state.recordTab||'meals', meals=viewedMeals(), user=currentUserId();
   const own=mealsOnDay().filter(meal=>meal.items?.some(item=>getShare(item,user)>0));
-  const intake=personTotals(own,user).kcal, expenditure=dailyExpenditure(readProfile()), balance=expenditure-intake;
+  const intake=personTotals(own,user).kcal, baseline=dailyExpenditure(readProfile()), extra=n(readDayActivity().extraKcal), expenditure=baseline?baseline+extra:null, balance=expenditure-intake;
   const contents={
     meals:meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
     calories:dailyHistory(),
-    deficit:!expenditure?'<button class="btn btn-outline" data-action="profile">設定個人資料以估算每日消耗</button>':`<p>估計每日消耗 ${whole(expenditure)} kcal</p>${own.length?`<p>已記錄攝取 ${whole(intake)} kcal</p><p><strong>${balance>=0?'估計赤字':'估計盈餘'} ${whole(Math.abs(balance))} kcal</strong></p><p class="tiny">依目前個人資料與當日已記錄的餐點估算。</p>`:'<p>這天還沒有你的餐點紀錄。</p>'}`
+    deficit:activityForm()+(!expenditure?'<button class="btn btn-outline" data-action="profile">設定個人資料以估算每日消耗</button>':`<p>估計總消耗 ${whole(expenditure)} kcal${extra?`（含額外運動 ${whole(extra)} kcal）`:''}</p>${own.length?`<p>已記錄攝取 ${whole(intake)} kcal</p><p><strong>${balance>=0?'估計赤字':'估計盈餘'} ${whole(Math.abs(balance))} kcal</strong></p><p class="tiny">依目前個人資料與當日已記錄的餐點估算。</p>`:'<p>這天還沒有你的餐點紀錄。</p>'}`)
   };
   return `<main class="layout compact-dashboard"><header class="journal-header"><h1>記錄</h1></header>${active==='deficit'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
   <label class="field">查看日期<input type="date" id="record-date" value="${state.date}"></label><div class="meal-list">${contents[active]}</div></main>`;
