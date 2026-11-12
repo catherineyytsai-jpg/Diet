@@ -57,3 +57,10 @@
 }
 @media(max-width:360px){.layout{padding-left:11px;padding-right:11px}.page-heading h1{font-size:24px}.date-controls{gap:4px}.date-controls>.btn-small{font-size:11px;min-width:30px;padding:6px}.date-pill input{font-size:13px}.meal-pic,.meal-placeholder{width:90px;min-width:90px}.meal-content h3{font-size:13px}.meal-kcals{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.progress-fill,.bar-fill{transition:none}*{scroll-behavior:auto!important}}
+
+.journal-controls { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 }
+.journal-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) }
+@media(min-width:701px) {
+  .journal-nav { position:sticky; bottom:0; max-width:620px; margin:0 auto; padding:8px; background:#fff; border:1px solid #e6eae4; border-radius:16px }
+  .dialog-open .journal-nav { display:none }
+}
