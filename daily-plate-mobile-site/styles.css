@@ -133,3 +133,5 @@
 .journal-date-tools .date-pill {flex:0 1 auto}
 .today-shortcut {white-space:nowrap;flex:none;min-height:42px}
 @media(max-width:390px) {.journal-header {flex-wrap:wrap}.journal-date-tools {margin-left:auto}}
+
+.member-card-link {appearance:none;border:0;background:none;color:inherit;font:inherit;font-weight:800;text-align:left;padding:4px 0;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:4px;cursor:pointer}
