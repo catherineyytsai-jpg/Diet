@@ -203,3 +203,13 @@
 .trend-person > .tiny {margin:4px 6px 10px}
 .expenditure-values {grid-template-columns:repeat(3,minmax(0,1fr))}
 .expenditure-values span:last-child {color:#215e49}
+
+@media(max-width:600px){
+  .journal-header {display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .journal-date-tools {width:100%;margin:0;justify-content:space-between}
+  .date-stepper {display:grid;grid-template-columns:44px minmax(0,1fr) 44px;flex:1;min-width:0}
+  .date-stepper > button {width:44px;display:grid;place-items:center;position:relative;z-index:1}
+  .journal-header .date-stepper .date-pill {width:100%;max-width:none;overflow:hidden}
+  .journal-header .date-stepper input {display:block;min-width:0;width:100%;text-align:center}
+  .journal-header .date-stepper input::-webkit-date-and-time-value {text-align:center}
+}

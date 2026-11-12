@@ -49,7 +49,7 @@ async function loadWorkspace(){state.space=null;state.members=[];state.meals=[];
  if(!rows?.length)return;
  const {data:space,error:se}=await client.from('spaces').select('*').eq('id',rows[0].space_id).single();if(se)throw se;
  state.space=space;
- const {data:people,error:pe}=await client.from('memberships').select('space_id, slot, display_name, daily_goal, user_id').eq('space_id',space.id);if(pe)throw pe;
+ const {data:people,error:pe}=await client.from('memberships').select('*').eq('space_id',space.id);if(pe)throw pe;
  state.members=people;
  await loadMeals();setupRealtime();
 }
@@ -452,13 +452,22 @@ function profileForm(){
     <p>估計每日消耗 ${dailyExpenditure(p)?whole(dailyExpenditure(p))+' kcal':'—'}</p>
     <p class="tiny">個人資料儲存在目前瀏覽器。</p><button class="btn btn-primary">儲存個人資料</button></form>`;
 }
-function saveProfile(form){
+async function saveProfile(form){
   const data=new FormData(form);
   const p=Object.fromEntries(['height','weight','age','activity'].map(key=>[key,Number(data.get(key))]));
   p.sex=data.get('sex');
   if(dailyExpenditure(p)<=0)return toast('請確認身高、體重和年齡');
-  try{localStorage.setItem(profileKey(),JSON.stringify(p));render();toast('個人資料已儲存')}
-  catch{toast('瀏覽器無法儲存個人資料')}
+  try{
+    localStorage.setItem(profileKey(),JSON.stringify(p));
+    if(!state.demo){
+      const member=currentMember(), baseline=dailyExpenditure(p);
+      const {error}=await client.from('memberships').update({baseline_kcal:baseline})
+        .eq('space_id',state.space.id).eq('user_id',member.user_id).select('user_id').single();
+      if(error){render();return toast('個人資料已儲存在此瀏覽器，共用消耗尚未同步')}
+      member.baseline_kcal=baseline;
+    }
+    render();toast('個人資料已儲存');
+  }catch{toast('瀏覽器無法儲存個人資料')}
 }
 function historySeries(people,end,length){
   const days=Array.from({length},(_,index)=>shiftDate(end,index-length+1));
@@ -482,11 +491,13 @@ function historyValueLabel(value,member,day,length){
   return `${whole(value)} kcal${length===7&&base&&value>goal?` · 超標 ${whole(value-goal)} kcal`:''}`;
 }
 function historyBalance(member,start,end,baseline){
-  if(!baseline||member.user_id!==currentUserId())return null;
+  const own=member.user_id===currentUserId();
+  const expenditure=own?(baseline||n(member.baseline_kcal)):n(member.baseline_kcal);
+  if(!expenditure)return null;
   const values=[];
   for(let day=start;day<=end;day=shiftDate(day,1)){
     const meals=state.meals.filter(meal=>meal.day===day&&meal.items?.some(item=>getShare(item,member.user_id)>0));
-    if(meals.length)values.push(baseline+n(readDayActivity(day).extraKcal)-personTotals(meals,member.user_id).kcal);
+    if(meals.length)values.push(expenditure+(own?n(readDayActivity(day).extraKcal):0)-personTotals(meals,member.user_id).kcal);
   }
   return values.length?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length):null;
 }
@@ -536,7 +547,7 @@ function dailyHistory(){
         return `<rect x="${x(i)-7}" y="${top}" width="14" height="${height}" rx="2" fill="${value>=0?'#28765c':'#b65337'}"><title>${balanceLabel(value)}</title></rect>
         ${length===7?`<text x="${x(i)}" y="${value>=0?top-4:top+height+11}" text-anchor="middle">${whole(Math.abs(value))}</text>`:''}`;
       }).join('')}`:''}</svg>
-      <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
+      <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。夥伴使用共用的平常消耗估算。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
     }).join('')}</div>
     <details class="trend-details"><summary>查看數字</summary>
     ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
@@ -615,7 +626,7 @@ async function saveAdvice(form){
 }
 
 function expenditureCard(){
-  const baseline=dailyExpenditure(readProfile());
+  const baseline=dailyExpenditure(readProfile())||n(currentMember()?.baseline_kcal);
   const extra=n(readDayActivity().extraKcal);
   return `<section class="summary-card day-balance"><h3>當日熱量消耗</h3>
     <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(currentMember()?.display_name||'')}</p>
@@ -643,7 +654,7 @@ function recordsPage(){
 document.addEventListener('visibilitychange',async ()=>{
   if(document.hidden||!client||!state.session||!state.space||state.modal)return;
   const spaceId=state.space.id;
-  const {data,error}=await client.from('memberships').select('space_id, slot, display_name, daily_goal, user_id').eq('space_id',spaceId);
+  const {data,error}=await client.from('memberships').select('*').eq('space_id',spaceId);
   if(!error&&data?.length&&state.space?.id===spaceId&&!state.modal){
     state.members=data;
     render();
