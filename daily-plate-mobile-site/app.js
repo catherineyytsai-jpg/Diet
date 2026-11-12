@@ -85,7 +85,7 @@ function viewedMembers(){
 }
 function memberPicker(){
   const people=orderedMembers();
-  if(people.length<2)return '';
+  if(people.length<2)return state.space?'<div class="member-invite"><span>目前只有你加入</span><button class="btn btn-outline btn-small" data-action="show-space">邀請夥伴</button></div>':'';
   const selected=viewedMembers().length===2?'all':state.memberView;
   return `<div class="journal-controls" role="group" aria-label="選擇要查看的成員">
     ${[['all','兩人'],...people.map(person=>[person.user_id,person.display_name])].map(([id,label])=>
@@ -125,7 +125,7 @@ function formItem(i,item){const people=orderedMembers();return `<div class="edit
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('已加入手機主畫面')});
-function renderModal(){if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
+function renderModal(){if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
@@ -176,9 +176,35 @@ async function saveMeal(){collectFormBasic();const f=state.currentForm;if(!f.ite
 async function deleteMeal(){const f=state.currentForm;if(!f?.id||!confirm('確定要刪除這筆餐點紀錄嗎？'))return;setBusy(true);try{if(state.demo){state.meals=state.meals.filter(m=>m.id!==f.id);demoWrite()}else{const {error}=await client.from('meals').delete().eq('id',f.id).eq('space_id',state.space.id);if(error)throw error;await loadMeals();if(f.originalPhotos.length)await client.storage.from('meal-photos').remove(f.originalPhotos)}state.modal=null;state.currentForm=null;render();toast('已刪除餐點')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 async function authSubmit(form){const fd=new FormData(form),email=String(fd.get('email')).trim(),password=String(fd.get('password'));setBusy(true);try{if(state.authMode==='login'){const {data,error}=await client.auth.signInWithPassword({email,password});if(error)throw error;state.session=data.session;await loadWorkspace();state.notice='';render()}else{const {data,error}=await client.auth.signUp({email,password});if(error)throw error;if(data.session){state.session=data.session;await loadWorkspace();render()}else toast('註冊完成，請到信箱點擊驗證連結，之後再登入')}}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 async function spaceSubmit(form,isCreate){const fd=new FormData(form);const nickname=String(fd.get('nickname')||'').trim();setBusy(true);try{let response;if(isCreate)response=await client.rpc('create_shared_space',{p_space_name:String(fd.get('spaceName')||'我們的餐桌'),p_display_name:nickname});else response=await client.rpc('join_shared_space',{p_invite_code:String(fd.get('invite')||'').trim().toUpperCase(),p_display_name:nickname});if(response.error)throw response.error;await loadWorkspace();render();toast(isCreate?'已建立雙人空間，請分享邀請碼':'已加入雙人空間')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
-async function setGoal(user){const member=state.members.find(m=>m.user_id===user);if(!member)return;if(!state.demo&&user!==currentUserId())return toast('每個人只能修改自己的目標');const input=prompt(`每日熱量目標(kcal)\n留空可取消目標`,member.daily_goal||'');if(input===null)return;const val=input.trim()===''?null:Math.round(n(input));if(val!==null&&(val<500||val>10000))return toast('請輸入 500～10,000 kcal，或留空取消');
- if(state.demo){member.daily_goal=val;try{localStorage.setItem('daily-plate-demo-goals',JSON.stringify(Object.fromEntries(state.members.map(m=>[m.user_id,m.daily_goal]))))}catch{}render();return}setBusy(true);try{const {error}=await client.from('memberships').update({daily_goal:val}).eq('user_id',user).eq('space_id',state.space.id);if(error)throw error;member.daily_goal=val;render();toast('每日目標已更新')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
-document.addEventListener('submit',async e=>{if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
+function goalModal(){
+  const goal=currentMember()?.daily_goal;
+  return journalModal('每日熱量目標(kcal)',`<form id="goal-form">
+    <label class="field" for="goal-value">每日熱量目標</label>
+    <input id="goal-value" name="goal" type="number" min="500" max="10000" step="1" inputmode="numeric" value="${goal==null?'':n(goal)}">
+    <p class="tiny">留空可取消目標。</p>
+    <button class="btn btn-primary" type="submit">儲存目標</button></form>`);
+}
+async function saveGoal(form){
+  const member=currentMember();
+  if(!member||state.busy)return;
+  const value=new FormData(form).get('goal');
+  const goal=value===''?null:Number(value);
+  setBusy(true);
+  try{
+    if(state.demo){
+      const goals=Object.fromEntries(state.members.map(person=>[person.user_id,person.daily_goal]));
+      localStorage.setItem('daily-plate-demo-goals',JSON.stringify({...goals,[member.user_id]:goal}));
+    }else{
+      const {error}=await client.from('memberships').update({daily_goal:goal}).eq('user_id',member.user_id).eq('space_id',state.space.id).select('user_id').single();
+      if(error)throw error;
+    }
+    member.daily_goal=goal;
+    state.modal=state.goalBack||null;
+    render();
+    toast('每日目標已更新');
+  }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
+}
+document.addEventListener('submit',async e=>{if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
@@ -208,7 +234,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  }
  else if(action==='show-space'){state.modal='space';render()}
  else if(action==='copy-code'){try{await navigator.clipboard.writeText(state.space.invite_code);toast('邀請碼已複製')}catch{toast('無法自動複製，請手動選取邀請碼')}}
- else if(action==='goal')await setGoal(el.dataset.user);
+ else if(action==='goal'){state.goalBack=state.modal;state.modal='goal';render()}
  else if(action==='photo-draft'){collectFormBasic();state.currentForm=state.photoDrafts[Number(el.dataset.index)];render()}
  else if(action==='remove-photo'){collectFormBasic();state.currentForm.photos.splice(Number(el.dataset.index),1);render()}
  else if(action==='analyze')await estimatePhoto();
@@ -424,7 +450,7 @@ function recordsPage(){
     deficit:activityForm()+(!expenditure?'<button class="btn btn-outline" data-action="profile">設定個人資料以估算每日消耗</button>':`<p>估計總消耗 ${whole(expenditure)} kcal${extra?`（含額外運動 ${whole(extra)} kcal）`:''}</p>${own.length?`<p>已記錄攝取 ${whole(intake)} kcal</p><p><strong>${balance>=0?'估計赤字':'估計盈餘'} ${whole(Math.abs(balance))} kcal</strong></p><p class="tiny">依目前個人資料與當日已記錄的餐點估算。</p>`:'<p>這天還沒有你的餐點紀錄。</p>'}`)
   };
   return `<main class="layout compact-dashboard"><header class="journal-header"><h1>記錄</h1></header>${active==='deficit'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
-  <label class="field">查看日期<input type="date" id="record-date" value="${state.date}"></label><div class="meal-list">${contents[active]}</div></main>`;
+  <div class="record-date-row"><label for="record-date">查看日期</label><input type="date" id="record-date" value="${state.date}"></div><div class="meal-list">${contents[active]}</div></main>`;
 }
 
 document.addEventListener('visibilitychange',async ()=>{

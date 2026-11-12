@@ -107,3 +107,9 @@
 .daily-chart-track > span {flex:none}
 .goal-marker {position:absolute;top:0;bottom:0;width:2px;background:#334d40}
 .meal-content {flex:1;min-width:0;overflow-wrap:anywhere}
+
+.record-date-row,.member-invite {display:flex;align-items:center;gap:12px;margin:14px 0}
+.record-date-row label {flex:none;font-weight:650}
+.record-date-row input {box-sizing:border-box;min-height:44px;height:44px;width:auto;max-width:100%;margin:0;padding:6px 10px}
+.member-invite {justify-content:space-between;font-size:14px}
+#goal-value {display:block;width:100%;margin-top:6px}
