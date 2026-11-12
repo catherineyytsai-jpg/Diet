@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Daily Plate｜我們的熱量日記",
+  "short_name": "Daily Plate",
+  "description": "兩個人的餐點照片與每日熱量日記",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f7f3",
+  "theme_color": "#2c8060",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

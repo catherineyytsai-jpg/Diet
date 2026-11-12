@@ -1,0 +1,10 @@
+{
+  "name": "daily-plate-shared-calorie-journal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Two-person private food photo diary with optional AI calorie estimates.",
+  "scripts": {
+    "dev": "python3 -m http.server 8000"
+  }
+}
