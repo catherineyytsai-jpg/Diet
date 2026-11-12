@@ -181,3 +181,20 @@
 .activity-entry label {min-width:0;font-size:12px}
 .activity-entry input {width:100%;min-width:0;padding-inline:6px}
 .activity-entry .quiet {min-height:44px}
+
+.day-balance {width:100%;min-height:0;padding:16px}
+.day-balance h3,.day-balance p {margin:0 0 8px}
+.balance-values {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0;font-size:13px}
+.balance-values strong {display:block;font-size:17px}
+.balance-track {display:flex;height:10px;overflow:hidden;border-radius:8px;background:#e7eee8;margin:12px 0 8px}
+.balance-track span {display:block;background:#4b8067}
+.balance-track .balance-deficit {background:#b5d5c3}
+.balance-track .balance-surplus {background:#b65337}
+.balance-result {color:#254439}
+.balance-activity {font-size:13px}
+@media(max-width:700px){
+  .modal.journal-sheet {height:auto;max-height:calc(100dvh - 64px);border-radius:22px 22px 0 0;margin:0;animation:journal-sheet-in .18s ease-out}
+  .modal.journal-sheet.meal-editor {min-height:0}
+}
+@keyframes journal-sheet-in {from {transform:translateY(24px);opacity:.6}to {transform:translateY(0);opacity:1}}
+@media(prefers-reduced-motion:reduce){.modal.journal-sheet {animation:none}}
