@@ -101,13 +101,14 @@ function mealCard(meal){
   return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
- const links=[['records','記錄'],['today','首頁'],['add-meal','＋ 上傳'],['settings','設定']];
- const active=state.page==='records'?'records':'today';
+ const links=[['records','記錄'],['home','首頁'],['add-meal','＋ 上傳'],['settings','設定']];
+ const active=state.page==='records'?'records':'home';
  return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}">${label}</button>`).join('')}</nav>`;
 }
 function datedHeader(title,id,brand=false){
   return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>
-    <label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label></header>`;
+    <div class="journal-date-tools"><label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
+    ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div></header>`;
 }
 function renderDashboard(){
   const meals=viewedMeals();
@@ -217,7 +218,12 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
  else if(action==='prev-day')await changeDay(shiftDate(state.date,-1));
  else if(action==='next-day')await changeDay(shiftDate(state.date,1));
- else if(action==='today'){state.page='home';await changeDay(dateKey(new Date()))}
+ else if(action==='home'){state.page='home';render()}
+ else if(action==='today'){
+   const today=dateKey(new Date());
+   state.historyEnd=today;
+   await changeDay(today);
+ }
  else if(action==='yesterday')await changeDay(shiftDate(dateKey(new Date()),-1));
  else if(action==='add-meal')openNewForm(null);
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}

@@ -128,3 +128,8 @@
 #display-name-form .btn {min-height:44px;margin-top:4px}
 .goal-section {margin-top:20px;padding-top:16px;border-top:1px solid #e6ece7}
 .home-activity {margin:10px 0;color:#46695a;font-weight:650;font-size:13px}
+
+.journal-date-tools {display:flex;align-items:center;justify-content:flex-end;gap:6px;min-width:0}
+.journal-date-tools .date-pill {flex:0 1 auto}
+.today-shortcut {white-space:nowrap;flex:none;min-height:42px}
+@media(max-width:390px) {.journal-header {flex-wrap:wrap}.journal-date-tools {margin-left:auto}}
