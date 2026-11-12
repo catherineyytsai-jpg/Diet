@@ -247,6 +247,13 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
  else if(action==='member-view'){state.memberView=el.dataset.id;render()}
  else if(['profile','settings','display-name'].includes(action)){state.modal=action;render()}
+ else if(action==='edit-advice'){state.adviceEditDay=state.date;render();$('advice-text')?.focus()}
+ else if(action==='cancel-advice'){state.adviceEditDay=null;render()}
+ else if(action==='add-activity'){
+   const list=el.closest('form').querySelector('.activity-entries');
+   if(list.children.length<12){list.insertAdjacentHTML('beforeend',activityEntry());list.lastElementChild.querySelector('input').focus()}
+ }
+ else if(action==='remove-activity')el.closest('.activity-entry').remove()
  else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
@@ -482,22 +489,28 @@ function dailyHistory(){
   const y=value=>138-value/max*118;
   const colors=['#28765c','#a35734'];
   const palette=people.map(member=>colors[orderedMembers().findIndex(person=>person.user_id===member.user_id)]||colors[0]);
-  const labels=[0,Math.floor((series.length-1)/2),series.length-1];
+  const labels=length===7?series.map((_,i)=>i):[0,Math.floor((series.length-1)/2),series.length-1];
   const dateLabel=day=>day.slice(5).replace('-','/');
   return `<section class="trend-card" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
     <p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
-    <svg class="trend-plot" viewBox="0 0 350 166" role="img" aria-label="各成員熱量折線圖">
-    ${[0,.5,1].map(f=>`<line x1="52" y1="${y(max*f)}" x2="338" y2="${y(max*f)}" stroke="#dce8df"/><text x="46" y="${y(max*f)+4}" text-anchor="end">${whole(max*f)}</text>`).join('')}
-    ${labels.map(i=>`<text x="${x(i)}" y="158" text-anchor="middle">${dateLabel(series[i].end)}</text>`).join('')}
-    ${people.map((member,j)=>series.map(({values},i)=>{
-      const value=values[j], previous=series[i-1]?.values[j];
-      if(value===null)return '';
-      return `${previous!=null?`<line x1="${x(i-1)}" y1="${y(previous)}" x2="${x(i)}" y2="${y(value)}" stroke="${palette[j]}" stroke-width="2.5"/>`:''}
-        <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"/>`;
-    }).join('')).join('')}</svg>
-    <div class="trend-legend">${people.map((member,i)=>`<span><i style="background:${palette[i]}"></i>${escapeHtml(member.display_name)}</span>`).join('')}</div>
+    <div class="trend-panels">${people.map((member,j)=>{
+      const totals=series.map(row=>row.values[j]).filter(value=>value!==null);
+      const average=totals.length?whole(totals.reduce((sum,value)=>sum+value,0)/totals.length)+' kcal':'未記錄';
+      return `<div class="trend-person">
+      <div class="trend-person-head"><strong>${escapeHtml(member.display_name)}</strong><span>${length===7&&totals.length?'日均 ':''}${length===7||!totals.length?average:''}</span></div>
+      <svg class="trend-plot" viewBox="0 0 350 166" role="img" aria-label="${escapeHtml(member.display_name)} 的熱量折線圖">
+      ${[0,.5,1].map(f=>`<line x1="52" y1="${y(max*f)}" x2="338" y2="${y(max*f)}" stroke="#dce8df"/><text x="46" y="${y(max*f)+4}" text-anchor="end">${whole(max*f)}</text>`).join('')}
+      ${labels.map(i=>`<text x="${x(i)}" y="158" text-anchor="middle">${dateLabel(series[i].end)}</text>`).join('')}
+      ${series.map(({values},i)=>{
+        const value=values[j], previous=series[i-1]?.values[j];
+        if(value===null)return '';
+        return `${previous!=null?`<line x1="${x(i-1)}" y1="${y(previous)}" x2="${x(i)}" y2="${y(value)}" stroke="${palette[j]}" stroke-width="2.5"/>`:''}
+          <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"><title>${dateLabel(series[i].end)} · ${whole(value)} kcal</title></circle>
+          ${length===7?`<text x="${x(i)}" y="${y(value)-8}" text-anchor="middle">${whole(value)}</text>`:''}`;
+      }).join('')}</svg></div>`;
+    }).join('')}</div>
     <details class="trend-details"><summary>查看數字</summary>
     ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
       <span>${dateLabel(start)}${start!==end?`–${dateLabel(end)}`:''}</span>
@@ -512,18 +525,31 @@ function readDayActivity(day){
 }
 function saveDayActivity(form){
   const fields=new FormData(form);
-  const activity={steps:n(fields.get('steps')),extraKcal:n(fields.get('extraKcal'))};
+  const names=fields.getAll('activityName'), minutes=fields.getAll('activityMinutes'), calories=fields.getAll('activityKcal');
+  const entries=names.map((name,i)=>({name:String(name).trim(),minutes:n(minutes[i]),kcal:n(calories[i])}))
+    .filter(entry=>entry.name||entry.minutes||entry.kcal);
+  if(entries.some(entry=>!entry.name))return toast('請填寫運動名稱');
+  const activity={steps:n(fields.get('steps')),entries,extraKcal:entries.reduce((sum,entry)=>sum+entry.kcal,0)};
   try{localStorage.setItem(activityKey(),JSON.stringify(activity));render();toast('活動紀錄已儲存')}
   catch{toast('瀏覽器無法儲存活動紀錄')}
 }
+function activityEntry(entry={}){
+  return `<div class="activity-entry">
+    <label>運動名稱<input name="activityName" maxlength="40" value="${escapeHtml(entry.name||'')}" placeholder="例如：網球"></label>
+    <label>分鐘<input name="activityMinutes" type="number" min="0" max="1440" step="1" value="${entry.minutes||''}"></label>
+    <label>額外 kcal<input name="activityKcal" type="number" min="0" step="1" value="${entry.kcal||''}"></label>
+    <button type="button" class="quiet" data-action="remove-activity" aria-label="移除此運動">移除</button></div>`;
+}
 function activityForm(){
-  const {steps,extraKcal}=readDayActivity();
-  return `<form id="activity-form" class="summary-card">
-    <h3>當日活動</h3><div class="form-grid">
+  const {steps,extraKcal,entries}=readDayActivity();
+  const activities=entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]);
+  return `<form id="activity-form" class="summary-card activity-card">
+    <h3>當日活動</h3>
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
-    <label class="field">額外運動消耗（kcal）<input name="extraKcal" type="number" min="0" step="1" value="${extraKcal??''}" inputmode="numeric"></label></div>
-    <p class="tiny">只填平常活動量以外的消耗。額外消耗會加到當天的熱量目標。活動紀錄儲存在此瀏覽器。</p>
-    <button class="btn btn-outline btn-small">儲存活動</button></form>`;
+    <div class="activity-entries">${activities.map(activityEntry).join('')}</div>
+    <button type="button" class="btn btn-outline btn-small" data-action="add-activity">＋ 新增運動</button>
+    <p class="tiny">分鐘與額外熱量可留空。只把平常活動量以外的消耗加到當日目標。資料存於此瀏覽器。</p>
+    <button class="btn btn-primary btn-small">儲存活動</button></form>`;
 }
 
 function adviceMeal(){
@@ -536,10 +562,11 @@ function advicePanel(){
   const advice=meal.estimate_meta?.dailyAdvice||'';
   return `<section class="summary-card advice-card"><h3>當日飲食建議</h3>
     ${advice?`<p class="advice-text">${escapeHtml(advice)}</p>`:'<p class="tiny">這天還沒有建議。</p>'}
-    <form id="advice-form">
+    ${state.adviceEditDay===state.date?`<form id="advice-form">
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
       <textarea id="advice-text" name="advice" rows="4" maxlength="1800" required>${escapeHtml(advice)}</textarea>
-      <button class="btn btn-primary btn-small" type="submit">儲存建議</button></form></section>`;
+      <button class="btn btn-primary btn-small" type="submit">儲存建議</button><button type="button" class="btn btn-outline btn-small" data-action="cancel-advice">取消</button></form>`:
+    `<button class="btn btn-outline btn-small" data-action="edit-advice">${advice?'修改建議':'新增建議'}</button>`}</section>`;
 }
 async function saveAdvice(form){
   const meal=adviceMeal(), advice=String(new FormData(form).get('advice')||'').trim();
@@ -556,7 +583,7 @@ async function saveAdvice(form){
     }
     meal.estimate_meta=meta;
     if(state.demo)demoWrite();
-    render();toast('建議已儲存');
+    state.adviceEditDay=null;render();toast('建議已儲存');
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 

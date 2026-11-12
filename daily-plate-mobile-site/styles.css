@@ -168,3 +168,16 @@
 .trend-details {margin-top:14px;font-size:13px}
 .trend-details summary {cursor:pointer;color:#31594a}
 .trend-row {display:flex;flex-wrap:wrap;gap:6px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid #edf1ed;background:none;color:inherit;padding:9px 0;cursor:pointer}
+
+.trend-panels {display:grid;gap:10px}
+.trend-person {border:1px solid #e6ece7;border-radius:12px;padding:10px 8px 2px}
+.trend-person-head {display:flex;justify-content:space-between;gap:8px;padding:0 6px;font-size:13px}
+.trend-person-head span {color:#48695a}
+.trend-person .trend-plot {max-height:220px}
+.activity-card {width:100%;min-height:0}
+.activity-card h3 {margin-top:0}
+.activity-entries {display:grid;gap:8px;margin:10px 0}
+.activity-entry {display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr)) auto;align-items:end;gap:6px;padding:8px;background:#f1f5f2;border-radius:10px}
+.activity-entry label {min-width:0;font-size:12px}
+.activity-entry input {width:100%;min-width:0;padding-inline:6px}
+.activity-entry .quiet {min-height:44px}
