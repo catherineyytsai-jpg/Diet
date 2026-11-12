@@ -69,7 +69,7 @@ function alertBanner(){if(state.demo)return `<div class="banner banner-demo"><b>
 function topbar(){const names=orderedMembers();return `<div class="topbar"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate<span class="brand-sub">FOOD JOURNAL</span></span></div><div class="top-actions">${state.space?`<button class="btn btn-outline btn-small btn-hide-mobile" data-action="show-space">共用代碼</button>`:''}<button class="btn btn-outline btn-small install-trigger" data-action="show-install" aria-label="安裝到手機主畫面" title="加入手機主畫面">⌂ <span>加入手機</span></button><div class="avatar-pair">${names.map((m,i)=>`<span class="avatar" title="${escapeHtml(m.display_name)}">${escapeHtml((m.display_name||'?').slice(0,1))}</span>`).join('')}</div>${state.demo?'':`<button class="quiet" data-action="signout">登出</button>`}</div></div>`}
 function renderAuth(){app.innerHTML=`<div class="layout"><div class="auth-wrap"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate</span></div>${alertBanner()}<div class="auth-panel"><p class="eyebrow">SHARED FOOD JOURNAL</p><h1>${state.authMode==='login'?'歡迎回來':'建立你的帳號'}</h1><p>每天拍照記錄飲食，與另一個人共用完整熱量日記。</p><form id="auth-form"><div class="field"><label>電子郵件</label><input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div><div class="field"><label>密碼</label><input name="password" type="password" minlength="6" required placeholder="至少 6 碼" autocomplete="${state.authMode==='login'?'current-password':'new-password'}"></div><button class="btn btn-primary fill" type="submit">${state.authMode==='login'?'登入':'註冊'}</button></form><div class="toggle-line">${state.authMode==='login'?'還沒有帳號？':'已經有帳號？'} <button class="quiet" data-action="toggle-auth">${state.authMode==='login'?'建立帳號':'返回登入'}</button></div></div><p style="font-size:12px;text-align:center;margin-top:21px">照片只對同一個共用空間內的成員開放。</p></div></div>`}
 function renderWorkspace(){app.innerHTML=`<div class="layout">${topbar()}<div class="workspace-panel">${alertBanner()}<p class="eyebrow">SET UP YOUR SHARED SPACE</p><h1>開始記錄每一餐。</h1><p>建立空間後就能自己記餐，也可分享邀請碼，讓另一人加入同一份飲食日記。</p><div class="workspace-options"><div class="workspace-box"><h2>建立個人空間</h2><p>給自己取個稱呼，就可以開始記餐。</p><form id="create-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="我" maxlength="24" required></div><div class="field"><label>空間名稱</label><input name="spaceName" value="我們的餐桌" maxlength="40" required></div><button class="btn btn-primary fill" type="submit">建立雙人空間</button></form></div><div class="workspace-box"><h2>加入已有空間</h2><p>請對方分享邀請碼，輸入後即可一起紀錄。</p><form id="join-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="他" maxlength="24" required></div><div class="field"><label>8 碼邀請碼</label><input name="invite" class="code" maxlength="8" minlength="8" required placeholder="例如 A1B2C3D4" autocapitalize="characters"></div><button class="btn btn-outline fill" type="submit">加入空間</button></form></div></div></div></div>`}
-function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),goal=n(member.daily_goal),p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${goal&&t.kcal>goal?'summary-over':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span>${escapeHtml(member.display_name||'成員')} ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`每日目標 ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
+function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),base=n(member.daily_goal),activity=member.user_id===currentUserId()?readDayActivity():{},extra=n(activity.extraKcal),goal=base?base+extra:0,p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${goal&&t.kcal>goal?'summary-over':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span>${escapeHtml(member.display_name||'成員')} ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`${extra?'今日調整後目標':'每日目標'} ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}${activity.steps||extra?`<p class="home-activity">${[activity.steps?`${whole(activity.steps)} 步`:'',extra?`額外運動 ${whole(extra)} kcal`:''].filter(Boolean).join(' · ')}</p>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
 function mealPhotos(meal){
   return [meal.image_path,...(Array.isArray(meal.estimate_meta?.extraPhotos)?meal.estimate_meta.extraPhotos:[])].filter(Boolean);
 }
@@ -113,7 +113,7 @@ function renderDashboard(){
   const meals=viewedMeals();
   if(state.page==='records'){app.innerHTML=`${recordsPage()}${mobileNav()}${state.modal?renderModal():''}`;return}
   app.innerHTML=`<main class="layout compact-dashboard">
-    ${datedHeader('Food Journal','date-control',true)}
+    ${datedHeader('FOOD JOURNAL','date-control',true)}
     ${state.demo?'<p class="tiny">預覽模式 · 資料儲存在此瀏覽器</p>':state.notice?alertBanner():''}
     ${memberPicker()}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
       <div class="summary-grid">${viewedMembers().map(summaryCard).join('')}</div></section>
@@ -180,12 +180,16 @@ async function deleteMeal(){const f=state.currentForm;if(!f?.id||!confirm('確�
 async function authSubmit(form){const fd=new FormData(form),email=String(fd.get('email')).trim(),password=String(fd.get('password'));setBusy(true);try{if(state.authMode==='login'){const {data,error}=await client.auth.signInWithPassword({email,password});if(error)throw error;state.session=data.session;await loadWorkspace();state.notice='';render()}else{const {data,error}=await client.auth.signUp({email,password});if(error)throw error;if(data.session){state.session=data.session;await loadWorkspace();render()}else toast('註冊完成，請到信箱點擊驗證連結，之後再登入')}}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 async function spaceSubmit(form,isCreate){const fd=new FormData(form);const nickname=String(fd.get('nickname')||'').trim();setBusy(true);try{let response;if(isCreate)response=await client.rpc('create_shared_space',{p_space_name:String(fd.get('spaceName')||'我們的餐桌'),p_display_name:nickname});else response=await client.rpc('join_shared_space',{p_invite_code:String(fd.get('invite')||'').trim().toUpperCase(),p_display_name:nickname});if(response.error)throw response.error;await loadWorkspace();render();toast(isCreate?'已建立雙人空間，請分享邀請碼':'已加入雙人空間')}catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 function goalModal(){
-  const goal=currentMember()?.daily_goal;
+  const goal=currentMember()?.daily_goal, estimate=dailyExpenditure(readProfile());
   return journalModal('每日熱量目標(kcal)',`<form id="goal-form">
     <label class="field" for="goal-value">每日熱量目標</label>
     <input id="goal-value" name="goal" type="number" min="500" max="10000" step="1" inputmode="numeric" value="${goal==null?'':n(goal)}">
     <p class="tiny">留空可取消目標。</p>
-    <button class="btn btn-primary" type="submit">儲存目標</button></form>`);
+    ${estimate?`<p>估計維持熱量 <strong>${whole(estimate)} kcal／天</strong></p>
+      <button type="button" class="btn btn-outline btn-small" data-action="use-estimate">填入維持熱量</button>`:''}
+    <button class="btn btn-primary" type="submit">儲存目標</button></form>
+    <section class="goal-section"><h3>身體資料與活動量</h3>${profileForm()}</section>
+    <section class="goal-section"><p class="tiny">活動日期 ${state.date}</p>${activityForm()}</section>`);
 }
 async function saveGoal(form){
   const member=currentMember();
@@ -237,6 +241,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  }
  else if(action==='show-space'){state.modal='space';render()}
  else if(action==='copy-code'){try{await navigator.clipboard.writeText(state.space.invite_code);toast('邀請碼已複製')}catch{toast('無法自動複製，請手動選取邀請碼')}}
+ else if(action==='use-estimate'){$('goal-value').value=dailyExpenditure(readProfile())}
  else if(action==='goal'){state.goalBack=state.modal;state.modal='goal';render()}
  else if(action==='photo-draft'){collectFormBasic();state.currentForm=state.photoDrafts[Number(el.dataset.index)];render()}
  else if(action==='remove-photo'){collectFormBasic();state.currentForm.photos.splice(Number(el.dataset.index),1);render()}
@@ -364,7 +369,7 @@ function dailyExpenditure(p){
   return Math.round(resting*p.activity);
 }
 function journalModal(title,html){
-  return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${title}"><div class="modal-head"><h2>${title}</h2><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${html}</section></div>`;
+  return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="${title}" ${title==='顯示名稱'?'data-compact-modal':''}><div class="modal-head"><h2>${title}</h2><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${html}</section></div>`;
 }
 function displayNameModal(){
   return journalModal('顯示名稱',`<form id="display-name-form">
@@ -405,14 +410,15 @@ function settingsModal(){
     `<button class="btn btn-outline" data-action="${action}" ${user?`data-user="${user}"`:''}>${escapeHtml(label)}</button>`).join('')}</div>`);
 }
 
-function profileModal(){
+function profileModal(){return journalModal('個人資料',profileForm())}
+function profileForm(){
   const p=readProfile(), fields=[['height','身高（cm）',80,250,0.1],['weight','體重（kg）',20,400,0.1],['age','年齡',19,120,1]];
-  return journalModal('個人資料',`<form id="profile-form"><div class="form-grid">
+  return `<form id="profile-form"><div class="form-grid">
     ${fields.map(([name,label,min,max,step])=>`<label class="field">${label}<input type="number" name="${name}" min="${min}" max="${max}" step="${step}" value="${n(p[name])||''}" required></label>`).join('')}
     <label class="field">估算公式使用的性別<select name="sex" required><option value="">請選擇</option><option value="female" ${p.sex==='female'?'selected':''}>女性</option><option value="male" ${p.sex==='male'?'selected':''}>男性</option></select></label>
     <label class="field">活動量<select name="activity">${activityOptions.map(([factor,label])=>`<option value="${factor}" ${p.activity===factor?'selected':''}>${label}</option>`).join('')}</select></label></div>
     <p>估計每日消耗 ${dailyExpenditure(p)?whole(dailyExpenditure(p))+' kcal':'—'}</p>
-    <p class="tiny">個人資料儲存在目前瀏覽器。</p><button class="btn btn-primary">儲存個人資料</button></form>`);
+    <p class="tiny">個人資料儲存在目前瀏覽器。</p><button class="btn btn-primary">儲存個人資料</button></form>`;
 }
 function saveProfile(form){
   const data=new FormData(form);
@@ -436,7 +442,7 @@ function dailyHistory(){
     const meals=state.meals.filter(meal=>meal.day===day);
     return {day,values:people.map(member=>{
       const own=meals.filter(meal=>meal.items?.some(item=>getShare(item,member.user_id)>0));
-      return {member,total:personTotals(own,member.user_id).kcal,goal:n(member.daily_goal),hasMeals:own.length>0};
+      return {member,total:personTotals(own,member.user_id).kcal,goal:member.daily_goal?n(member.daily_goal)+(member.user_id===currentUserId()?n(readDayActivity(day).extraKcal):0):0,hasMeals:own.length>0};
     })};
   });
   const max=Math.max(1,...rows.flatMap(row=>row.values.flatMap(value=>[value.total,value.goal])));
@@ -446,11 +452,11 @@ function dailyHistory(){
       <span>${escapeHtml(member.display_name)} · ${hasMeals?`${whole(total)} kcal${goal&&total>goal?` · 超標 ${whole(total-goal)} kcal`:''}`:'未記錄'}</span>
       ${energyBar(total,goal,max)}</span>`).join('')}</span></button>`).join('')}</div></section>`;
 }
-function activityKey(){
-  return `daily-plate-activity-${currentUserId()}-${state.date}`;
+function activityKey(day=state.date){
+  return `daily-plate-activity-${currentUserId()}-${day}`;
 }
-function readDayActivity(){
-  try{return JSON.parse(localStorage.getItem(activityKey()))||{}}catch{return {}}
+function readDayActivity(day){
+  try{return JSON.parse(localStorage.getItem(activityKey(day)))||{}}catch{return {}}
 }
 function saveDayActivity(form){
   const fields=new FormData(form);
@@ -464,7 +470,7 @@ function activityForm(){
     <h3>當日活動</h3><div class="form-grid">
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
     <label class="field">額外運動消耗（kcal）<input name="extraKcal" type="number" min="0" step="1" value="${extraKcal??''}" inputmode="numeric"></label></div>
-    <p class="tiny">只填平常活動量以外的消耗。步數與活動紀錄儲存在此瀏覽器。</p>
+    <p class="tiny">只填平常活動量以外的消耗。額外消耗會加到當天的熱量目標。活動紀錄儲存在此瀏覽器。</p>
     <button class="btn btn-outline btn-small">儲存活動</button></form>`;
 }
 
