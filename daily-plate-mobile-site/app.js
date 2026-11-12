@@ -59,9 +59,22 @@ function setupRealtime(){if(!client||!state.space)return;
  realtimeChannel=client.channel('meal-updates-'+state.space.id).on('postgres_changes',{event:'*',schema:'public',table:'meals',filter:`space_id=eq.${state.space.id}`},()=>loadMeals().then(render).catch(()=>{})).subscribe();
 }
 async function loadMeals(){if(state.demo)return;
- const {data,error}=await client.from('meals').select('*').eq('space_id',state.space.id).gte('day',shiftDate(state.date,-45)).lte('day',shiftDate(state.date,15)).order('created_at',{ascending:false}).limit(500);
- if(error)throw error;state.meals=data||[];
- const paths=[...new Set(state.meals.flatMap(mealPhotos).filter(Boolean))];
+ const space=state.space.id, selected=state.date;
+ const anchor=state.page==='records'?state.historyEnd||selected:selected;
+ const start=shiftDate(selected<anchor?selected:anchor,-89);
+ const end=selected>anchor?selected:anchor;
+ const meals=[];
+ const pageSize=500;
+ for(let offset=0;;offset+=pageSize){
+   const {data,error}=await client.from('meals').select('*').eq('space_id',space)
+     .gte('day',start).lte('day',end).order('created_at',{ascending:false}).order('id').range(offset,offset+pageSize-1);
+   if(error)throw error;
+   meals.push(...data);
+   if(data.length<pageSize)break;
+ }
+ if(state.space?.id!==space||state.date!==selected)return;
+ state.meals=meals;
+ const paths=[...new Set(mealsOnDay().flatMap(mealPhotos))];
  await Promise.all(paths.map(async path=>{if(state.imageUrls[path])return;const {data,error}=await client.storage.from('meal-photos').createSignedUrl(path,3600);if(!error&&data?.signedUrl)state.imageUrls[path]=data.signedUrl}));
 }
 async function changeDay(day){if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return;state.date=day;if(!state.demo&&state.space){try{await loadMeals()}catch(e){toast(friendlyError(e))}}render()}
@@ -101,7 +114,7 @@ function mealCard(meal){
   return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
- const links=[['records','記錄','▤'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙']];
+ const links=[['records','記錄','≡'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙']];
  const active=state.page==='records'?'records':'home';
  return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label,icon])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}"><span class="nav-symbol" aria-hidden="true">${icon}</span><span>${label}</span></button>`).join('')}</nav>`;
 }
@@ -234,6 +247,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
  else if(action==='member-view'){state.memberView=el.dataset.id;render()}
  else if(['profile','settings','display-name'].includes(action)){state.modal=action;render()}
+ else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
  else if(action==='locate')fillLocation();
@@ -439,29 +453,56 @@ function saveProfile(form){
   try{localStorage.setItem(profileKey(),JSON.stringify(p));render();toast('個人資料已儲存')}
   catch{toast('瀏覽器無法儲存個人資料')}
 }
-function energyBar(total,goal,max){
-  const base=goal?Math.min(total,goal):total;
-  const excess=goal?Math.max(0,total-goal):0;
-  return `<span class="daily-chart-track" aria-hidden="true">
-    <span style="width:${base/max*100}%"></span><span class="over-goal" style="width:${excess/max*100}%"></span>
-    ${goal?`<i class="goal-marker" style="left:${Math.min(99.5,goal/max*100)}%"></i>`:''}</span>`;
+function historySeries(people,end,length){
+  const days=Array.from({length},(_,index)=>shiftDate(end,index-length+1));
+  const size=length===7?1:7;
+  const buckets=[];
+  for(let to=days.length;to>0;to-=size)buckets.unshift(days.slice(Math.max(0,to-size),to));
+  return buckets.map(days=>({
+    start:days[0],end:days.at(-1),
+    values:people.map(member=>{
+      const totals=days.flatMap(day=>{
+        const own=state.meals.filter(meal=>meal.day===day&&meal.items?.some(item=>getShare(item,member.user_id)>0));
+        return own.length?[personTotals(own,member.user_id).kcal]:[];
+      });
+      return totals.length?Math.round(totals.reduce((sum,value)=>sum+value,0)/totals.length):null;
+    })
+  }));
+}
+function historyValueLabel(value,member,day,length){
+  const base=n(member.daily_goal);
+  const goal=base+(member.user_id===currentUserId()?n(readDayActivity(day).extraKcal):0);
+  return `${whole(value)} kcal${length===7&&base&&value>goal?` · 超標 ${whole(value-goal)} kcal`:''}`;
 }
 function dailyHistory(){
-  const days=Array.from({length:7},(_,i)=>shiftDate(state.historyEnd||state.date,i-6));
-  const people=viewedMembers();
-  const rows=days.map(day=>{
-    const meals=state.meals.filter(meal=>meal.day===day);
-    return {day,values:people.map(member=>{
-      const own=meals.filter(meal=>meal.items?.some(item=>getShare(item,member.user_id)>0));
-      return {member,total:personTotals(own,member.user_id).kcal,goal:member.daily_goal?n(member.daily_goal)+(member.user_id===currentUserId()?n(readDayActivity(day).extraKcal):0):0,hasMeals:own.length>0};
-    })};
-  });
-  const max=Math.max(1,...rows.flatMap(row=>row.values.flatMap(value=>[value.total,value.goal])));
-  return `<section aria-label="七日熱量圖表"><h3>七日熱量趨勢</h3><p class="tiny">刻線為每日目標，紅色為超標的部分。</p><div class="daily-chart">${rows.map(({day,values})=>
-    `<button class="daily-chart-row" data-action="history-day" data-day="${day}" aria-pressed="${day===state.date}"><span>${day.slice(5).replace('-','/')}</span>
-    <span class="daily-chart-values">${values.map(({member,total,goal,hasMeals})=>`<span class="daily-chart-value">
-      <span>${escapeHtml(member.display_name)} · ${hasMeals?`${whole(total)} kcal${goal&&total>goal?` · 超標 ${whole(total-goal)} kcal`:''}`:'未記錄'}</span>
-      ${energyBar(total,goal,max)}</span>`).join('')}</span></button>`).join('')}</div></section>`;
+  const length=state.historyRange||7, people=viewedMembers(), end=state.historyEnd||state.date;
+  const series=historySeries(people,end,length);
+  const max=Math.ceil(Math.max(500,...series.flatMap(row=>row.values))/500)*500;
+  const x=i=>54+i*278/Math.max(1,series.length-1);
+  const y=value=>138-value/max*118;
+  const colors=['#28765c','#a35734'];
+  const palette=people.map(member=>colors[orderedMembers().findIndex(person=>person.user_id===member.user_id)]||colors[0]);
+  const labels=[0,Math.floor((series.length-1)/2),series.length-1];
+  const dateLabel=day=>day.slice(5).replace('-','/');
+  return `<section class="trend-card" aria-label="熱量趨勢">
+    <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
+    ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
+    <p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
+    <svg class="trend-plot" viewBox="0 0 350 166" role="img" aria-label="各成員熱量折線圖">
+    ${[0,.5,1].map(f=>`<line x1="52" y1="${y(max*f)}" x2="338" y2="${y(max*f)}" stroke="#dce8df"/><text x="46" y="${y(max*f)+4}" text-anchor="end">${whole(max*f)}</text>`).join('')}
+    ${labels.map(i=>`<text x="${x(i)}" y="158" text-anchor="middle">${dateLabel(series[i].end)}</text>`).join('')}
+    ${people.map((member,j)=>series.map(({values},i)=>{
+      const value=values[j], previous=series[i-1]?.values[j];
+      if(value===null)return '';
+      return `${previous!=null?`<line x1="${x(i-1)}" y1="${y(previous)}" x2="${x(i)}" y2="${y(value)}" stroke="${palette[j]}" stroke-width="2.5"/>`:''}
+        <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"/>`;
+    }).join('')).join('')}</svg>
+    <div class="trend-legend">${people.map((member,i)=>`<span><i style="background:${palette[i]}"></i>${escapeHtml(member.display_name)}</span>`).join('')}</div>
+    <details class="trend-details"><summary>查看數字</summary>
+    ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
+      <span>${dateLabel(start)}${start!==end?`–${dateLabel(end)}`:''}</span>
+      ${values.map((value,i)=>`<span>${escapeHtml(people[i].display_name)} · ${value===null?'未記錄':historyValueLabel(value,people[i],end,length)}</span>`).join('')}</button>`).join('')}
+    </details></section>`;
 }
 function activityKey(day=state.date){
   return `daily-plate-activity-${currentUserId()}-${day}`;

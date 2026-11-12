@@ -153,3 +153,18 @@
 .date-stepper input {font-variant-numeric:tabular-nums;text-align:center}
 .journal-date-tools {gap:8px}
 .journal-date-tools .today-shortcut {border:0;background:transparent;color:#27634e;padding-inline:6px}
+
+.trend-card {width:100%;min-width:0;padding:16px;background:#fff;border:1px solid #e6ece7;border-radius:16px}
+.trend-head {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.trend-head h3 {margin:0}
+.trend-ranges {display:flex;gap:3px;padding:3px;background:#eef4ef;border-radius:10px}
+.trend-ranges button {border:0;background:none;border-radius:7px;padding:7px 9px;min-height:40px;color:inherit;font-size:13px;cursor:pointer}
+.trend-ranges button[aria-pressed="true"] {background:#fff;color:#205d48;font-weight:800}
+.trend-plot {display:block;width:100%;max-height:280px;overflow:visible}
+.trend-plot text {font:10px system-ui;fill:#54685d}
+.trend-legend {display:flex;justify-content:center;gap:16px;font-size:13px}
+.trend-legend span {display:flex;align-items:center;gap:6px}
+.trend-legend i {width:8px;height:8px;border-radius:50%}
+.trend-details {margin-top:14px;font-size:13px}
+.trend-details summary {cursor:pointer;color:#31594a}
+.trend-row {display:flex;flex-wrap:wrap;gap:6px 12px;width:100%;text-align:left;border:0;border-bottom:1px solid #edf1ed;background:none;color:inherit;padding:9px 0;cursor:pointer}

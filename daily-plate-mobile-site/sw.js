@@ -1,5 +1,5 @@
 /* Cache only public app shell. Never cache user photos, API responses or auth data. */
-const CACHE_NAME='daily-plate-shell-v20';
+const CACHE_NAME='daily-plate-shell-v21';
 const SHELL=['./offline.html','./styles.css','./app.js','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./manifest.webmanifest'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
