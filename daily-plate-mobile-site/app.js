@@ -272,6 +272,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
    await changeDay(dateKey(new Date(year,month-1+Number(el.dataset.offset),1,12)));
  }
  else if(action==='history-style'){state.historyStyle=el.dataset.style;render()}
+ else if(action==='history-grouping'){state.historyGrouping=el.dataset.grouping;render()}
  else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
@@ -496,7 +497,7 @@ async function saveProfile(form){
 }
 function historySeries(people,end,length){
   const days=Array.from({length},(_,index)=>shiftDate(end,index-length+1));
-  const size=length===7?1:7;
+  const size=length===7||(length===30&&state.historyGrouping!=='week')?1:7;
   const buckets=[];
   for(let to=days.length;to>0;to-=size)buckets.unshift(days.slice(Math.max(0,to-size),to));
   return buckets.map(days=>({
@@ -541,6 +542,7 @@ function dailyHistory(){
   const colors=['#28765c','#a35734'];
   const palette=people.map(member=>colors[orderedMembers().findIndex(person=>person.user_id===member.user_id)]||colors[0]);
   const labels=length===7?series.map((_,i)=>i):[0,Math.floor((series.length-1)/2),series.length-1];
+  const barWidth=Math.min(14,220/series.length);
   const dateLabel=day=>day.slice(5).replace('-','/');
   const horizontal=state.historyStyle==='bars';
   const styles=`<div class="journal-controls" role="group" aria-label="圖表樣式"><button class="btn btn-small ${horizontal?'btn-outline':'btn-primary'}" data-action="history-style" data-style="line" aria-pressed="${!horizontal}">折線圖</button><button class="btn btn-small ${horizontal?'btn-primary':'btn-outline'}" data-action="history-style" data-style="bars" aria-pressed="${horizontal}">橫條圖</button></div>`;
@@ -561,7 +563,7 @@ function dailyHistory(){
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
     <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>${periodCard}
-    ${styles}<p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
+    ${styles}${length===30?`<div class="trend-ranges">${[['day','每日'],['week','每週平均']].map(([key,label])=>`<button data-action="history-grouping" data-grouping="${key}" aria-pressed="${(state.historyGrouping||'day')===key}">${label}</button>`).join('')}</div>`:''}<p class="tiny">${series.length===length?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
     ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
       <span>${dateLabel(row.start)}${row.start!==row.end?'–'+dateLabel(row.end):''}<small>${escapeHtml(people[j].display_name)}</small></span>
@@ -583,14 +585,14 @@ function dailyHistory(){
           <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"><title>${dateLabel(series[i].end)} · ${whole(value)} kcal</title></circle>
           ${length===7&&series[i].end===state.date?`<text x="${x(i)}" y="${y(value)-8}" text-anchor="middle">${whole(value)}</text>`:''}`;
       }).join('')}
-      ${hasBalance?`<text x="52" y="158">${length===7?'每日收支':'每週平均收支'}</text>
+      ${hasBalance?`<text x="52" y="158">${series.length===length?'每日收支':'每週平均收支'}</text>
       <line x1="52" x2="338" y1="198" y2="198" stroke="#a0b7a9"/><text x="46" y="202" text-anchor="end">0</text>
       ${balances.map((row,i)=>{
         const value=row[j];
         if(value===null)return '';
         const height=Math.max(2,Math.abs(value)/balanceMax*26);
         const top=value>=0?198-height:198;
-        return `<rect x="${x(i)-7}" y="${top}" width="14" height="${height}" rx="2" fill="${value>=0?'#28765c':'#b65337'}"><title>${balanceLabel(value)}</title></rect>
+        return `<rect x="${x(i)-barWidth/2}" y="${top}" width="${barWidth}" height="${height}" rx="2" fill="${value>=0?'#28765c':'#b65337'}"><title>${balanceLabel(value)}</title></rect>
         ${length===7?`<text x="${x(i)}" y="${value>=0?top-4:top+height+11}" text-anchor="middle">${whole(Math.abs(value))}</text>`:''}`;
       }).join('')}`:''}</svg>
       <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。夥伴使用共用的平常消耗估算。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
@@ -622,7 +624,9 @@ function activityEntry(entry={}){
 }
 function activityForm(){
   const {steps,extraKcal,entries}=readDayActivity();
-  const activities=entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]);
+  const activities=[...(entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]))];
+  if(currentMember()&&tennisDay(currentMember(),state.date)&&!activities.some(entry=>/網球|tennis/i.test(entry.name)))
+    activities.push({name:'網球',minutes:60});
   return `<form id="activity-form" class="summary-card activity-card">
     <h3>當日活動</h3>
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
@@ -676,12 +680,21 @@ async function saveAdvice(form){
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 
+function tennisDay(member,day){
+  if(member.display_name.toLowerCase()!=='jay'||day<'2026-11-08')return false;
+  const [year,month,date]=day.split('-').map(Number);
+  return new Date(year,month-1,date,12).getDay()===0;
+}
+function tennisNote(member,day,activity){
+  return tennisDay(member,day)&&!activity?.entries?.some(entry=>/網球|tennis/i.test(entry.name))
+    ? '<p class="tennis-note">網球 · 60 分鐘（預設）</p>':'';
+}
 function expenditureCard(member){
   const own=member.user_id===currentUserId();
   const baseline=(own?dailyExpenditure(readProfile()):0)||n(member.baseline_kcal);
   const extra=own?n(readDayActivity().extraKcal):null;
-  return `<section class="summary-card day-balance"><h3>當日熱量消耗</h3>
-    <p class="tiny">${escapeHtml(member.display_name)}</p>
+  return `<section class="summary-card day-balance"><h3>${escapeHtml(member.display_name)} <small>當日熱量消耗</small></h3>
+    ${tennisNote(member,state.date,own?readDayActivity():null)}
     <div class="balance-values expenditure-values">
       <span>平常估計消耗 <strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
       <span>額外活動消耗 <strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
@@ -711,7 +724,7 @@ function monthCalendar(){
     ${'<span></span>'.repeat(first.getDay())}
     ${Array.from({length:count},(_,i)=>{
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
-      const tennis=day>=today&&date.getDay()===0&&people.some(person=>person.display_name.toLowerCase()==='jay');
+      const tennis=people.some(person=>tennisDay(person,day));
       const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
       const ringColor=value=>value==null?'transparent':value<0?'#b65337':value===0?'#76857d':'#328368';
       const left=ringColor(values[0]), right=values.length>1?ringColor(values[1]):left;
@@ -737,6 +750,7 @@ function activityRecords(){
       const entry=self?readDayActivity(day):null;
       const extra=entry?n(entry.extraKcal):null;
       return `<div class="activity-history-member"><strong>${escapeHtml(member.display_name)}</strong>
+      ${tennisNote(member,day,entry)}
       <div class="balance-values expenditure-values">
         <span>平常估計<strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
         <span>額外活動<strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>

@@ -292,3 +292,9 @@
 .trend-deficit {color:#21664e}
 
 .advice-plan h5 {font-size:14px;margin:14px 0 6px;padding-top:10px;border-top:1px solid #dce7df}
+
+.period-balance > div {display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.period-balance > div p {display:grid;background:#fff;border-radius:9px;padding:8px 10px;margin:0}
+.day-balance h3 small {font-size:.72em;color:#52685e;margin-left:6px}
+.activity-history-member > strong {font-size:15px;color:#215e49}
+.tennis-note {font-size:13px;color:#654a12;background:#fff3ce;border-radius:7px;padding:4px 8px;width:fit-content}
