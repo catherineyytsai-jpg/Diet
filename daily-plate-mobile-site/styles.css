@@ -393,3 +393,11 @@
 .weight-values dd {margin:0;font-weight:750}
 .weight-progress progress {display:block;width:100%;height:10px;accent-color:var(--green)}
 #weight-goal-form label {display:block;margin:12px 0 5px}
+
+/* Fit the complete photo inside the card at its original aspect ratio. */
+.meal-card .meal-photo-strip .meal-pic {
+  height:auto;
+  aspect-ratio:auto;
+  object-fit:contain;
+}
+.meal-photo-strip > button {display:grid;align-items:center}
