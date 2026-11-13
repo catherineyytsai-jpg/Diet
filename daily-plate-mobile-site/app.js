@@ -756,7 +756,7 @@ function advicePanel(day=state.date){
     const value=plan[key]??(key==='recommendation'?legacy?.[2]:null)??'';
     const displayValue=key==='review'&&legacy&&plan.recommendation==null?legacy[1]:value;
     const heading=key==='breakfast'?'<h5>明天的三餐提案</h5>':'';
-    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(displayValue)}"></label>`:`<p class="advice-line"><strong>${label}</strong><span>${escapeHtml(displayValue||'待補上')}</span></p>`);
+    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(displayValue)}"></label>`:`<p class="advice-line" ${key==='recommendation'?'style="grid-template-columns:1fr;gap:4px"':''}><strong>${label}</strong><span>${escapeHtml(displayValue||'待補上')}</span></p>`);
   }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>${dayLabel(day)}的飲食建議</h3>
     
