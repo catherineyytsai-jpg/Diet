@@ -409,3 +409,8 @@
 .meal-card .meal-action {position:absolute;right:8px;top:8px;margin:0}
 .meal-card .meal-title {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.35}
 .meal-card .note {margin-bottom:4px}
+.meal-card:has(.meal-gallery) .meal-gallery {align-self:center}
+.meal-card:has(.meal-gallery) .meal-content {padding-block:8px}
+.meal-card:has(.meal-gallery) .meal-content h3 {margin-block:2px}
+.meal-card:has(.meal-gallery) .meal-content .note {display:none}
+.meal-card:has(.meal-gallery) {min-height:0}
