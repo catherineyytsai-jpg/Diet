@@ -273,8 +273,8 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
    const [year,month]=state.date.split('-').map(Number);
    await changeDay(dateKey(new Date(year,month-1+Number(el.dataset.offset),1,12)));
  }
- else if(action==='history-style'){state.historyStyle=el.dataset.style;render()}
- else if(action==='history-grouping'){state.historyGrouping=el.dataset.grouping;render()}
+ else if(action==='history-style'){state.historyChartOpen=true;state.historyStyle=el.dataset.style;render()}
+ else if(action==='history-grouping'){state.historyChartOpen=true;state.historyGrouping=el.dataset.grouping;render()}
  else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
@@ -534,7 +534,7 @@ function balanceLabel(value){
   return value===0?'收支相抵':`${value>0?'赤字':'盈餘'} ${whole(Math.abs(value))} kcal`;
 }
 function dailyHistory(){
-  const length=state.historyRange||7, people=viewedMembers(), end=state.historyEnd||state.date;
+  const length=state.historyRange||7, people=viewedMembers(), end=state.date;
   const series=historySeries(people,end,length);
   const baseline=dailyExpenditure(readProfile());
   const balances=series.map(row=>people.map(member=>historyBalance(member,row.start,row.end,baseline)));
@@ -562,10 +562,27 @@ function dailyHistory(){
     <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong class="${periodNetBalance(member,end,length,baseline)<0?'trend-surplus':periodNetBalance(member,end,length,baseline)>0?'trend-deficit':''}">${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
     </section>`;
   const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
-  return `<section class="trend-card calorie-trend" aria-label="熱量趨勢">
-    <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
-    ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
-    <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>${periodCard}
+  const dates=Array.from({length},(_,i)=>shiftDate(state.date,-i));
+  const ledger=`<section class="trend-card activity-history"><h3>近 ${length} 天熱量</h3>
+    ${dates.map(day=>`<section><h4>${dayLabel(day)}</h4>${people.map(member=>{
+      const intake=historySeries([member],day,7).at(-1).values[0];
+      const balance=historyBalance(member,day,day,baseline);
+      const own=member.user_id===currentUserId();
+      const base=(own?baseline:0)||n(member.baseline_kcal);
+      const extra=own?n(readDayActivity(day).extraKcal):0;
+      return `<div class="activity-history-member"><strong>${escapeHtml(member.display_name)}</strong>
+        <div class="balance-values expenditure-values">
+          <span>攝取<strong>${intake===null?'未記錄':whole(intake)+' kcal'}</strong></span>
+          <span>估計消耗<strong>${base?whole(base+extra)+' kcal':'—'}</strong></span>
+          <span>估計收支<strong class="${balance<0?'trend-surplus':'trend-deficit'}">${balance===null?'—':balanceLabel(balance)}</strong></span>
+        </div></div>`;
+    }).join('')}</section>`).join('')}</section>`;
+  return `<section class="trend-card calorie-trend"><h3>當日熱量</h3>
+    <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div></section>
+    <div class="trend-ranges" role="group" aria-label="趨勢區間">
+    ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div>
+    ${periodCard}${ledger}
+    <details class="trend-card calorie-trend" ${state.historyChartOpen?'open':''}><summary>查看熱量趨勢圖</summary>
     ${styles}${length>7?`<div class="trend-ranges">${[['day','每日'],['week','每週平均']].map(([key,label])=>`<button data-action="history-grouping" data-grouping="${key}" aria-pressed="${(state.historyGrouping||'day')===key}">${label}</button>`).join('')}</div>`:''}<p class="tiny">${series.length===length?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
     ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
@@ -600,7 +617,7 @@ function dailyHistory(){
       }).join('')}`:''}</svg>
       <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。夥伴使用共用的平常消耗估算。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
     }).join('')}</div>`}
-</section>`;
+</details>`;
 }
 function activityKey(day=state.date){
   return `daily-plate-activity-${currentUserId()}-${day}`;
@@ -759,7 +776,7 @@ function monthCalendar(){
     ${'<span></span>'.repeat(first.getDay())}
     ${Array.from({length:count},(_,i)=>{
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
-      const scheduled=orderedMembers().map(person=>{
+      const scheduled=people.map(person=>{
         const name=scheduledActivity(person,day);
         const activity=person.user_id===currentUserId()?readDayActivity(day):null;
         return name&&(!activity?.scheduleReviewed||activity.entries?.some(entry=>entry.name===name))?person.display_name+' '+name+'日':'';
