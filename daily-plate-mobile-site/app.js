@@ -93,13 +93,13 @@ function mealPhoto(meal){
 }
 function viewedMembers(){
   const people=orderedMembers();
-  const selected=people.find(person=>person.user_id===state.memberView);
+  const selected=people.find(person=>person.user_id===(state.memberView??currentUserId()));
   return selected?[selected]:people;
 }
 function memberPicker(){
   const people=orderedMembers();
   if(people.length<2)return state.space?'<div class="member-invite"><span>目前只有你加入</span><button class="btn btn-outline btn-small" data-action="show-space">邀請夥伴</button></div>':'';
-  const selected=viewedMembers().length===2?'all':state.memberView;
+  const selected=viewedMembers().length===2?'all':viewedMembers()[0]?.user_id;
   return `<div class="journal-controls" role="group" aria-label="選擇要查看的成員">
     ${[['all','兩人'],...people.map(person=>[person.user_id,person.display_name])].map(([id,label])=>
       `<button class="btn btn-small ${selected===id?'btn-primary':'btn-outline'}" aria-pressed="${selected===id}" data-action="member-view" data-id="${escapeHtml(id)}">${escapeHtml(label)}</button>`).join('')}</div>`;
@@ -240,12 +240,12 @@ async function saveGoal(form){
 document.addEventListener('submit',async e=>{if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
- else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView='all';render()}
+ else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView=null;render()}
  else if(action==='prev-day'||action==='next-day'){
    const day=shiftDate(state.date,action==='prev-day'?-1:1);
    state.historyEnd=day;await changeDay(day);
  }
- else if(action==='home'){state.page='home';render()}
+ else if(action==='home'){if(state.page==='records')state.memberView=null;state.page='home';render()}
  else if(action==='today'){
    const today=dateKey(new Date());
    state.historyEnd=today;
@@ -548,20 +548,19 @@ function dailyHistory(){
     const value=historySeries([member],state.date,7).at(-1).values[0];
     const balance=historyBalance(member,state.date,state.date,baseline);
     const expenditure=value!==null&&balance!==null?value+balance:null;
-    const cumulative=balances.reduce((total,row)=>total+(row[j]??0),0);
-    const hasBalance=balances.some(row=>row[j]!==null);
-    const periodBalance=length===7?cumulative:periodNetBalance(member,end,length,baseline);
     return `<div class="trend-kpi"><strong style="color:${palette[j]}">${escapeHtml(member.display_name)}</strong>
       <span>攝取 <b>${value===null?'未記錄':whole(value)+' kcal'}</b></span>
       <span>估計消耗 <b>${expenditure===null?'—':whole(expenditure)+' kcal'}</b></span>
-      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span>
-      <span>${length} 天累積 <b>${hasBalance?balanceLabel(periodBalance):'—'}</b></span></div>`;
+      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
   }).join('');
+  const periodCard=`<section class="period-balance"><h3>${length} 天累積收支</h3>
+    <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong>${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
+    <small>只加總有攝取及消耗估算的日期</small></section>`;
   const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
   return `<section class="trend-card" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
-    <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>
+    <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>${periodCard}
     ${styles}<p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
     ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
@@ -712,9 +711,12 @@ function monthCalendar(){
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
       const tennis=day>=today&&date.getDay()===0&&people.some(person=>person.display_name.toLowerCase()==='jay');
       const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
+      const ringColor=value=>value==null?'transparent':value<0?'#b65337':value===0?'#76857d':'#328368';
+      const left=ringColor(values[0]), right=values.length>1?ringColor(values[1]):left;
       return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${tennis?' Jay 網球日':''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
-        <span class="${tennis?'tennis-day':''}">${i+1}</span><span class="calendar-markers">${values.map(v=>v===null?'':`<i class="${v<0?'surplus':v===0?'even':'deficit'}"></i>`).join('')}</span></button>`;
-    }).join('')}</div><p class="tiny">綠點 赤字 · 紅點 盈餘 · 灰點 持平 · 黃圈 Jay 網球日</p></section>`;
+        <span class="calendar-day-ring" style="--left:${left};--right:${right}"><span class="${tennis?'tennis-day':''}">${i+1}</span></span></button>`;
+
+    }).join('')}</div><p class="tiny">綠圈 赤字 · 紅圈 盈餘 · 灰圈 持平 · 黃底 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></section>`;
 }
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
@@ -723,10 +725,24 @@ function activityRecords(){
   const ownActivity=state.activityEditDay===end?activityForm():`<section class="summary-card day-balance"><h3>當日活動</h3>
     ${activity.steps?`<p>${whole(activity.steps)} 步</p>`:''}${summary?`<ul>${summary}</ul>`:''}
     ${!activity.steps&&!summary?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal?'修改活動':'新增活動'}</button></section>`;
-  const days=Array.from({length:count},(_,i)=>shiftDate(end,-i)).map(day=>({day,activity:readDayActivity(day)}))
-    .filter(({activity})=>activity.steps||activity.extraKcal||activity.entries?.length);
-  return people.map(expenditureCard).join('')+sectionRange('activity')+
-    (people.some(person=>person.user_id===own)?ownActivity+`<div class="trend-card"><h3>近 ${count} 天活動</h3>${days.map(({day,activity})=>`<p>${dayLabel(day)} · ${activity.steps?whole(activity.steps)+' 步':''} ${(activity.entries||[]).map(entry=>escapeHtml(entry.name)).join('、')} ${activity.extraKcal?'· '+whole(activity.extraKcal)+' kcal':''}</p>`).join('')||'<p class="tiny">區間內沒有活動紀錄。</p>'}</div>`:'');
+  const days=Array.from({length:count},(_,i)=>shiftDate(end,-i));
+  const profileEstimate=dailyExpenditure(readProfile());
+  const history=`<div class="trend-card activity-history"><h3>近 ${count} 天消耗</h3>
+    <p class="tiny">夥伴的額外活動未同步時，總消耗以平常估算顯示。</p>
+    ${days.map(day=>`<section><h4>${dayLabel(day)}</h4>${people.map(member=>{
+      const self=member.user_id===own;
+      const baseline=(self?profileEstimate:0)||n(member.baseline_kcal);
+      const entry=self?readDayActivity(day):null;
+      const extra=entry?n(entry.extraKcal):null;
+      return `<div class="activity-history-member"><strong>${escapeHtml(member.display_name)}</strong>
+      <div class="balance-values expenditure-values">
+        <span>平常估計<strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
+        <span>額外活動<strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
+        <span>總消耗<strong>${baseline?whole(baseline+(extra??0))+' kcal':'—'}</strong></span>
+      </div></div>`;
+    }).join('')}</section>`).join('')}</div>`;
+  return people.map(expenditureCard).join('')+
+    (people.some(person=>person.user_id===own)?ownActivity:'')+sectionRange('activity')+history;
 }
 function adviceRecords(){
   const count=state.adviceRange||7,start=shiftDate(state.date,1-count);

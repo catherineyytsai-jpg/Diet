@@ -263,3 +263,17 @@
 .calendar-markers i {width:5px;height:5px;border-radius:50%;background:#328368}
 .calendar-markers .surplus {background:#b65337}
 .calendar-markers .even {background:#76857d}
+
+.period-balance {padding:14px;border:1px solid #c9dfd1;border-radius:12px;background:#eaf4ed;margin:12px 0}
+.period-balance h3,.period-balance p {margin:0 0 6px}
+.period-balance p {display:flex;justify-content:space-between;gap:8px}
+.period-balance p strong {font-size:17px}
+.period-balance small {color:#476657}
+.calendar-day-ring {position:relative;display:grid;place-items:center;width:32px;height:32px;border-radius:50%;isolation:isolate}
+.calendar-day-ring::before {content:"";position:absolute;inset:0;border:2px solid var(--left);border-radius:50%;clip-path:inset(0 50% 0 0);z-index:-1}
+.calendar-day-ring::after {content:"";position:absolute;inset:0;border:2px solid var(--right);border-radius:50%;clip-path:inset(0 0 0 50%);z-index:-1}
+.activity-history h4 {margin:10px 0 6px}
+.activity-history section {border-top:1px solid #e7eee8;padding:6px 0}
+.activity-history-member {padding:4px 0}
+.activity-history-member .balance-values {margin:4px 0}
+.activity-history-member .balance-values strong {font-size:14px}
