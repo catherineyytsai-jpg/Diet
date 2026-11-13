@@ -553,9 +553,9 @@ function dailyHistory(){
       <span>估計消耗 <b>${expenditure===null?'—':whole(expenditure)+' kcal'}</b></span>
       <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
   }).join('');
-  const periodCard=`<section class="period-balance"><h3>${length} 天累積收支</h3>
-    <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong>${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
-    <small>只加總有攝取及消耗估算的日期</small></section>`;
+  const periodCard=`<section class="period-balance"><h3>${length} 天累積收支</h3><details class="inline-info"><summary aria-label="累積收支說明">ⓘ</summary><p>只加總有攝取及消耗估算的日期。</p></details>
+    <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong class="${periodNetBalance(member,end,length,baseline)<0?'trend-surplus':periodNetBalance(member,end,length,baseline)>0?'trend-deficit':''}">${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
+    </section>`;
   const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
   return `<section class="trend-card" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
@@ -646,7 +646,7 @@ function advicePanel(){
     const value=plans[person.user_id]?.[key]||'';
     return state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`;
   }).join('')}</section>`).join('');
-  return `<section class="summary-card advice-card"><h3>當日飲食建議</h3>
+  return `<section class="summary-card advice-card"><h3>${dayLabel(state.date)}的飲食建議</h3>
     
     ${state.adviceEditDay===state.date?`<form id="advice-form">
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
@@ -716,7 +716,7 @@ function monthCalendar(){
       return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${tennis?' Jay 網球日':''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
         <span class="calendar-day-ring" style="--left:${left};--right:${right}"><span class="${tennis?'tennis-day':''}">${i+1}</span></span></button>`;
 
-    }).join('')}</div><p class="tiny">綠圈 赤字 · 紅圈 盈餘 · 灰圈 持平 · 黃底 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></section>`;
+    }).join('')}</div><details class="calendar-info"><summary>ⓘ 月曆圖例</summary><p class="tiny">綠圈 赤字 · 紅圈 盈餘 · 灰圈 持平 · 黃底 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></details></section>`;
 }
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
@@ -753,7 +753,7 @@ function adviceRecords(){
     `<button class="btn btn-outline btn-small" data-action="history-day" data-day="${day}">${dayLabel(day)} 的建議</button>`).join('')}</div>`;
 }
 function recordsPage(){
-  const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','活動紀錄'],['advice','建議']];
+  const tabs=[['meals','餐點紀錄'],['deficit','活動紀錄'],['calories','熱量紀錄'],['advice','建議']];
   const active=state.recordTab||'meals', meals=viewedMeals();
   const contents={
     meals:()=>meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',

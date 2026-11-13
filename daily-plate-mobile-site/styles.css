@@ -277,3 +277,16 @@
 .activity-history-member {padding:4px 0}
 .activity-history-member .balance-values {margin:4px 0}
 .activity-history-member .balance-values strong {font-size:14px}
+
+@media(max-width:700px){
+ .journal-header:has(.account-circle){display:grid;grid-template-columns:minmax(0,1fr) 34px;align-items:center;row-gap:10px}
+ .journal-header:has(.account-circle) h1{padding-right:0}
+ .journal-header .account-circle{position:static;grid-column:2;grid-row:1}
+ .journal-header .journal-date-tools{grid-column:1/-1}
+}
+.period-balance {position:relative}
+.period-balance h3 {padding-right:40px}
+.inline-info summary,.calendar-info summary {cursor:pointer;color:#27634e;font-size:13px;list-style:none}
+.inline-info summary {position:absolute;right:12px;top:7px;padding:6px;font-size:20px}
+.inline-info p,.calendar-info p {margin:8px 0}
+.trend-deficit {color:#21664e}
