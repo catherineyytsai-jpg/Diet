@@ -136,7 +136,7 @@ function renderDashboard(){
   app.innerHTML=`<main class="layout compact-dashboard">
     ${datedHeader('Daily Plate','date-control',true)}
     ${state.demo?'<p class="tiny">預覽模式 · 資料儲存在此瀏覽器</p>':state.notice?alertBanner():''}
-    ${memberPicker()}${monthCalendar()}${viewedMembers().some(member=>member.user_id===currentUserId())?weightProgress():''}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
+    ${memberPicker()}${monthCalendar()}${viewedMembers().map(weightProgress).join('')}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
       <div class="summary-grid">${viewedMembers().map(summaryCard).join('')}</div></section>
     <section id="meal-section"><div class="section-title"><h2>餐點紀錄</h2><small>${meals.length} 筆</small></div>
       <div class="meal-list">${meals.length?meals.map(mealCard).join(''):'<p class="compact-empty">這天還沒有餐點紀錄。</p>'}</div></section>
@@ -197,7 +197,18 @@ async function estimatePhoto(){const f=state.currentForm;collectFormBasic();if(!
  }catch(e){toast(friendlyError(e))}finally{setBusy(false)}}
 function blobToDataURL(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob)})}
 async function uploadPhoto(dataUrl){const blob=await fetch(dataUrl).then(r=>r.blob());const path=`${state.space.id}/${newUUID()}.jpg`;const {error}=await client.storage.from('meal-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false,cacheControl:'3600'});if(error)throw error;return path}
-async function saveMeal(){collectFormBasic();const f=state.currentForm;if(!f.items.length)return toast('請至少新增一項食物');if(!f.items.every(item=>n(item.kcal)>=0&&Object.values(item.shares||{}).reduce((a,b)=>a+safePercent(b),0)<=100.001))return toast('每項食物的分食比例總和不可超過 100%');
+async function saveMeal(){collectFormBasic();const f=state.currentForm;
+ document.querySelectorAll('.meal-editor .editor-item').forEach((row,i)=>{
+   const item=f.items[i];
+   row.querySelectorAll('[data-field]').forEach(input=>{
+     const field=input.dataset.field;
+     item[field]=field==='name'?input.value:Math.max(0,n(input.value));
+   });
+   row.querySelectorAll('[data-share-user]').forEach(input=>{
+     item.shares??={};
+     item.shares[input.dataset.shareUser]=safePercent(input.value);
+   });
+ });if(!f.items.length)return toast('請至少新增一項食物');if(!f.items.every(item=>n(item.kcal)>=0&&Object.values(item.shares||{}).reduce((a,b)=>a+safePercent(b),0)<=100.001))return toast('每項食物的分食比例總和不可超過 100%');
  setBusy(true);const uploaded=[];let committed=false;try{
  const paths=[];
  for(const photo of f.photos){
@@ -510,23 +521,19 @@ function saveWeightGoal(form){
     render();toast('目標體重已儲存');
   }catch{toast('瀏覽器無法儲存目標體重')}
 }
-function weightProgress(){
-  const goal=readWeightGoal(), current=n(readProfile().weight);
-  const member=currentMember(), today=dateKey(new Date()), baseline=dailyExpenditure(readProfile());
+function weightProgress(member){
+  const own=member.user_id===currentUserId();
+  const goal=own?readWeightGoal():null, current=own?n(readProfile().weight):0;
+  const today=dateKey(new Date()), baseline=dailyExpenditure(readProfile());
   const days=[...new Set(state.meals.filter(meal=>meal.day<=today).map(meal=>meal.day))];
-  const balances=member&&goal?days.map(day=>historyBalance(member,day,day,baseline)).filter(value=>value!==null):[];
+  const balances=days.map(day=>historyBalance(member,day,day,baseline)).filter(value=>value!==null);
   const net=balances.reduce((sum,value)=>sum+value,0);
   const required=goal?(goal.start-goal.target)*7700:0;
   return `<section class="summary-card weight-progress">
-    <div class="card-top"><h2>體重進度</h2><button class="quiet" data-action="weight-goal">${goal?'修改目標':'設定目標體重'}</button></div>
-    ${goal?`<dl class="weight-values"><div><dt>起始</dt><dd>${fixed(goal.start)} kg</dd></div><div><dt>目前</dt><dd>${current?fixed(current)+' kg':'待填寫'}</dd></div><div><dt>目標</dt><dd>${fixed(goal.target)} kg</dd></div></dl>
-      <p class="tiny">起始至目標的粗估總赤字 <b>${whole((goal.start-goal.target)*7700)} kcal</b>
-      ${current>goal.target?` · 目前距目標 ${fixed(current-goal.target)} kg`:current?' · 已達目標':''}</p>
-      <p class="tiny">已載入的累積收支 <b class="${net<0?'trend-surplus':net>0?'trend-deficit':''}">${balances.length?balanceLabel(net):'尚無可計算的紀錄'}</b></p>
-      ${balances.length?`<progress aria-label="估算赤字進度" max="100" value="${safePercent(net/required*100)}"></progress>
-      <p class="tiny">估算赤字進度 ${fixed(safePercent(net/required*100))}% · 共 ${balances.length} 天有攝取及消耗估算</p>`:''}
-      <p class="tiny">熱量以每公斤約 7,700 kcal 粗估，實際會因人而異。</p>
-      <button class="btn btn-outline btn-small" data-action="profile">更新目前體重</button>`:'<p class="tiny">設定起始和目標體重，即可追蹤進度。</p>'}
+    <div class="card-top"><h2>${escapeHtml(member.display_name)} 的體重進度</h2>${own?`<button class="quiet" data-action="weight-goal">${goal?'修改目標':'設定目標體重'}</button>`:''}</div>
+    ${goal?`<p>${current?fixed(current)+' kg':'待記錄'} → <b>${fixed(goal.target)} kg</b></p>
+      ${balances.length?`<progress aria-label="估算赤字進度" max="100" value="${safePercent(net/required*100)}"></progress>`:''}`:''}
+    <p class="tiny">${balances.length?balanceLabel(net):'尚無收支紀錄'}${goal?` · 目標赤字約 ${whole(required)} kcal`:''}</p>
   </section>`;
 }
 function profileModal(){
@@ -754,7 +761,7 @@ function advicePanel(day=state.date){
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
       <textarea id="advice-text" name="advice" rows="3" maxlength="1800">${escapeHtml(advice)}</textarea>
       ${planCards}<button class="btn btn-primary btn-small" type="submit">儲存建議</button><button type="button" class="btn btn-outline btn-small" data-action="cancel-advice">取消</button></form>`:
-    `${planCards}<button class="btn btn-outline btn-small" data-action="edit-advice" data-day="${day}">${advice?'修改建議':'新增建議'}</button>`}</section>`;
+    `${advice.trim()?`<p style="white-space:pre-wrap">${escapeHtml(advice)}</p>`: ''}${planCards}<button class="btn btn-outline btn-small" data-action="edit-advice" data-day="${day}">${advice?'修改建議':'新增建議'}</button>`}</section>`;
 }
 async function saveAdvice(form){
   const meal=adviceMeal(state.adviceEditDay||state.date), data=new FormData(form), advice=String(data.get('advice')||'').trim();
@@ -893,7 +900,7 @@ function adviceRecords(){
   const count=state.adviceRange||7,start=shiftDate(state.date,1-count);
   const people=viewedMembers();
   const days=[...new Set(state.meals.filter(meal=>meal.day>=start&&meal.day<=state.date&&
-    people.some(person=>['review','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key]))).map(meal=>meal.day))].sort().reverse();
+    (meal.estimate_meta?.dailyAdvice?.trim()||people.some(person=>['review','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key])))).map(meal=>meal.day))].sort().reverse();
   if(!days.includes(state.date)&&adviceMeal())days.unshift(state.date);
   return sectionRange('advice')+(days.length?days.map(advicePanel).join(''):advicePanel());
 }
