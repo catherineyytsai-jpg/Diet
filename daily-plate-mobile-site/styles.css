@@ -401,3 +401,11 @@
   aspect-ratio:1;
   object-fit:cover;
 }
+
+.meal-card {position:relative}
+.meal-card .meal-content {padding:10px 12px}
+.meal-card .meal-overline {display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-right:32px}
+.meal-card .meal-owner {margin:0}
+.meal-card .meal-action {position:absolute;right:8px;top:8px;margin:0}
+.meal-card .meal-title {display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.35}
+.meal-card .note {margin-bottom:4px}
