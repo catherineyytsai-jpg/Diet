@@ -112,8 +112,10 @@ function viewedMeals(){
   return meals.filter(meal=>meal.items?.some(item=>getShare(item,people[0].user_id)>0));
 }
 function mealCard(meal){
+  const eaters=orderedMembers().filter(member=>meal.items?.some(item=>getShare(item,member.user_id)>0));
+  const ownerLabel=eaters.map(member=>member.display_name).join('、')||'未分配';
   const title=(meal.items||[]).map(item=>item.name).filter(Boolean).slice(0,3).join('、')||'餐點';
-  return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content" data-action="meal-detail" data-id="${meal.id}"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3><button class="quiet meal-title" data-action="meal-detail" data-id="${meal.id}">${escapeHtml(title)}</button></h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
+  return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content" data-action="meal-detail" data-id="${meal.id}"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><span class="meal-owner">${escapeHtml(ownerLabel)}</span><h3><button class="quiet meal-title" data-action="meal-detail" data-id="${meal.id}">${escapeHtml(title)}</button></h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().filter(member=>eaters.includes(member)||eaters.some(eater=>eater.user_id===member.user_id)).map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
  const links=[['records','記錄','≡'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙︎']];
@@ -549,11 +551,11 @@ function dailyHistory(){
   const dateLabel=day=>day.slice(5).replace('-','/');
   const horizontal=state.historyStyle==='bars';
   const styles=`<div class="journal-controls" role="group" aria-label="圖表樣式"><button class="btn btn-small ${horizontal?'btn-outline':'btn-primary'}" data-action="history-style" data-style="line" aria-pressed="${!horizontal}">折線圖</button><button class="btn btn-small ${horizontal?'btn-primary':'btn-outline'}" data-action="history-style" data-style="bars" aria-pressed="${horizontal}">橫條圖</button></div>`;
-  const summary=people.map((member,j)=>{
+  const summary=people.map(member=>{
     const value=historySeries([member],state.date,7).at(-1).values[0];
     const balance=historyBalance(member,state.date,state.date,baseline);
     const expenditure=value!==null&&balance!==null?value+balance:null;
-    return `<div class="trend-kpi"><strong style="color:${palette[j]}">${escapeHtml(member.display_name)}</strong>
+    return `<div class="trend-kpi"><strong>${escapeHtml(member.display_name)}</strong>
       <span>攝取 <b>${value===null?'未記錄':whole(value)+' kcal'}</b></span>
       <span>估計消耗 <b>${expenditure===null?'—':whole(expenditure)+' kcal'}</b></span>
       <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
@@ -581,8 +583,8 @@ function dailyHistory(){
     <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div></section>
     <div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div>
-    ${periodCard}${ledger}
-    <details class="trend-card calorie-trend" ${state.historyChartOpen?'open':''}><summary>查看熱量趨勢圖</summary>
+    ${periodCard}<details class="trend-card"><summary>查看逐日熱量明細</summary>${ledger}</details>
+    <details class="trend-card calorie-trend" open><summary>熱量趨勢圖</summary>
     ${styles}${length>7?`<div class="trend-ranges">${[['day','每日'],['week','每週平均']].map(([key,label])=>`<button data-action="history-grouping" data-grouping="${key}" aria-pressed="${(state.historyGrouping||'day')===key}">${label}</button>`).join('')}</div>`:''}<p class="tiny">${series.length===length?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
     ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
@@ -669,7 +671,7 @@ function advicePanel(day=state.date){
   const planCards=(state.adviceEditDay===day?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
     const value=plans[person.user_id]?.[key]||'';
     const heading=key==='breakfast'?'<h5>明天的三餐提案</h5>':'';
-    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`);
+    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p class="advice-line"><strong>${label}</strong><span>${escapeHtml(value||'待補上')}</span></p>`);
   }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>${dayLabel(day)}的飲食建議</h3>
     

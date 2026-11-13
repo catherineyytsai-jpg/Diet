@@ -313,3 +313,9 @@
 .calorie-trend .period-balance {border:0;border-radius:0;border-block:1px solid #dce7df;background:none;padding-inline:0}
 .calorie-trend .trend-person {border:0;border-radius:0;padding-inline:0;border-top:1px solid #e6ece7}
 .calorie-trend .trend-kpi + .trend-kpi,.calorie-trend .period-balance p + p {border-left:1px solid #dce7df}
+
+.meal-owner {display:inline-block;margin-top:5px;padding:1px 7px;background:#edf4ef;border-radius:6px;color:#31594a;font-size:12px;font-weight:750}
+.advice-card .advice-plan {background:none;margin:0;padding:14px 0;border-radius:0;border-top:1px solid #e1ebe4}
+.advice-plan h4 {font-size:17px;color:#254439}
+.advice-plan .advice-line {display:grid;grid-template-columns:3em minmax(0,1fr);gap:8px;margin:7px 0;color:#2d4037}
+.advice-plan .advice-line:first-of-type {grid-template-columns:1fr;gap:4px}
