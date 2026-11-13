@@ -290,3 +290,5 @@
 .inline-info summary {position:absolute;right:12px;top:7px;padding:6px;font-size:20px}
 .inline-info p,.calendar-info p {margin:8px 0}
 .trend-deficit {color:#21664e}
+
+.advice-plan h5 {font-size:14px;margin:14px 0 6px;padding-top:10px;border-top:1px solid #dce7df}

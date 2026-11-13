@@ -641,10 +641,11 @@ function advicePanel(){
   if(!meal)return '<p class="compact-empty">這天有餐點紀錄後，就可以留下建議。</p>';
   const advice=meal.estimate_meta?.dailyAdvice||'';
   const plans=meal.estimate_meta?.mealPlans||{};
-  const fields=[['next','下一餐'],['breakfast','明天早餐'],['lunch','明天午餐'],['dinner','明天晚餐']];
+  const fields=[['review','今天的餐點回顧'],['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐']];
   const planCards=(state.adviceEditDay===state.date?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
     const value=plans[person.user_id]?.[key]||'';
-    return state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`;
+    const heading=key==='breakfast'?'<h5>明天的三餐提案</h5>':'';
+    return heading+(state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`);
   }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>${dayLabel(state.date)}的飲食建議</h3>
     
@@ -656,7 +657,8 @@ function advicePanel(){
 }
 async function saveAdvice(form){
   const meal=adviceMeal(), data=new FormData(form), advice=String(data.get('advice')||'').trim();
-  const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,Object.fromEntries(['next','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))]));
+  const previousPlans=meal?.estimate_meta?.mealPlans||{};
+  const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,{...previousPlans[person.user_id],...Object.fromEntries(['review','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))}]));
   if(!meal||advice.length>1800||state.busy)return;
   setBusy(true);
   try{
@@ -748,7 +750,7 @@ function adviceRecords(){
   const count=state.adviceRange||7,start=shiftDate(state.date,1-count);
   const people=viewedMembers();
   const days=[...new Set(state.meals.filter(meal=>meal.day>=start&&meal.day<=state.date&&
-    people.some(person=>['next','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key]))).map(meal=>meal.day))].sort().reverse();
+    people.some(person=>['review','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key]))).map(meal=>meal.day))].sort().reverse();
   return sectionRange('advice')+advicePanel()+`<div class="journal-controls">${days.filter(day=>day!==state.date).map(day=>
     `<button class="btn btn-outline btn-small" data-action="history-day" data-day="${day}">${dayLabel(day)} 的建議</button>`).join('')}</div>`;
 }
