@@ -84,7 +84,7 @@ function alertBanner(){if(state.demo)return `<div class="banner banner-demo"><b>
 function topbar(){const names=orderedMembers();return `<div class="topbar"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate<span class="brand-sub">FOOD JOURNAL</span></span></div><div class="top-actions">${state.space?`<button class="btn btn-outline btn-small btn-hide-mobile" data-action="show-space">共用代碼</button>`:''}<button class="btn btn-outline btn-small install-trigger" data-action="show-install" aria-label="安裝到手機主畫面" title="加入手機主畫面">⌂ <span>加入手機</span></button><div class="avatar-pair">${names.map((m,i)=>`<span class="avatar" title="${escapeHtml(m.display_name)}">${escapeHtml((m.display_name||'?').slice(0,1))}</span>`).join('')}</div>${state.demo?'':`<button class="quiet" data-action="signout">登出</button>`}</div></div>`}
 function renderAuth(){app.innerHTML=`<div class="layout"><div class="auth-wrap"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate</span></div>${alertBanner()}<div class="auth-panel"><p class="eyebrow">SHARED FOOD JOURNAL</p><h1>${state.authMode==='login'?'歡迎回來':'建立你的帳號'}</h1><p>每天拍照記錄飲食，與另一個人共用完整熱量日記。</p><form id="auth-form"><div class="field"><label>電子郵件</label><input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div><div class="field"><label>密碼</label><input name="password" type="password" minlength="6" required placeholder="至少 6 碼" autocomplete="${state.authMode==='login'?'current-password':'new-password'}"></div><button class="btn btn-primary fill" type="submit">${state.authMode==='login'?'登入':'註冊'}</button></form><div class="toggle-line">${state.authMode==='login'?'還沒有帳號？':'已經有帳號？'} <button class="quiet" data-action="toggle-auth">${state.authMode==='login'?'建立帳號':'返回登入'}</button></div></div><p style="font-size:12px;text-align:center;margin-top:21px">照片只對同一個共用空間內的成員開放。</p></div></div>`}
 function renderWorkspace(){app.innerHTML=`<div class="layout">${topbar()}<div class="workspace-panel">${alertBanner()}<p class="eyebrow">SET UP YOUR SHARED SPACE</p><h1>開始記錄每一餐。</h1><p>建立空間後就能自己記餐，也可分享邀請碼，讓另一人加入同一份飲食日記。</p><div class="workspace-options"><div class="workspace-box"><h2>建立個人空間</h2><p>給自己取個稱呼，就可以開始記餐。</p><form id="create-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="我" maxlength="24" required></div><div class="field"><label>空間名稱</label><input name="spaceName" value="我們的餐桌" maxlength="40" required></div><button class="btn btn-primary fill" type="submit">建立雙人空間</button></form></div><div class="workspace-box"><h2>加入已有空間</h2><p>請對方分享邀請碼，輸入後即可一起紀錄。</p><form id="join-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="他" maxlength="24" required></div><div class="field"><label>8 碼邀請碼</label><input name="invite" class="code" maxlength="8" minlength="8" required placeholder="例如 A1B2C3D4" autocapitalize="characters"></div><button class="btn btn-outline fill" type="submit">加入空間</button></form></div></div></div></div>`}
-function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),base=n(member.daily_goal),activity=member.user_id===currentUserId()?readDayActivity():{},extra=n(activity.extraKcal),goal=base?base+extra:0,p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${goal&&t.kcal>goal?'summary-over':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span><button class="member-card-link" type="button" data-action="member-view" data-id="${escapeHtml(member.user_id)}" aria-label="查看 ${escapeHtml(member.display_name||'成員')} 的紀錄">${escapeHtml(member.display_name||'成員')}</button> ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`${extra?'今日調整後目標':'每日目標'} ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}${activity.steps||extra?`<p class="home-activity">${[activity.steps?`${whole(activity.steps)} 步`:'',extra?`額外運動 ${whole(extra)} kcal`:''].filter(Boolean).join(' · ')}</p>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
+function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),base=n(member.daily_goal),activity=member.user_id===currentUserId()?readDayActivity():{},extra=n(activity.extraKcal),goal=base?base+extra:0,p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${member.user_id===currentUserId()?'summary-self':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span><button class="member-card-link" type="button" data-action="member-view" data-id="${escapeHtml(member.user_id)}" aria-label="查看 ${escapeHtml(member.display_name||'成員')} 的紀錄">${escapeHtml(member.display_name||'成員')}</button> ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`${extra?'今日調整後目標':'每日目標'} ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}${activity.steps||extra?`<p class="home-activity">${[activity.steps?`${whole(activity.steps)} 步`:'',extra?`額外運動 ${whole(extra)} kcal`:''].filter(Boolean).join(' · ')}</p>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
 function mealPhotos(meal){
   return [meal.image_path,...(Array.isArray(meal.estimate_meta?.extraPhotos)?meal.estimate_meta.extraPhotos:[])].filter(Boolean);
 }
@@ -156,7 +156,7 @@ function renderModal(){
    <p>${orderedMembers().map(member=>`${escapeHtml(member.display_name)} · ${whole(personTotals([meal],member.user_id).kcal)} kcal`).join(' / ')}</p>
    <button class="btn btn-outline" data-action="edit-meal" data-id="${meal.id}">修改餐點</button>`);
  }
-if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
+if(state.modal==='weekly-activity')return weeklyActivityModal();if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
@@ -239,7 +239,7 @@ async function saveGoal(form){
     toast('每日目標已更新');
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
-document.addEventListener('submit',async e=>{if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
+document.addEventListener('submit',async e=>{if(e.target.id==='weekly-activity-form'){e.preventDefault();await saveWeeklyActivity(e.target)}if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView=null;render()}
@@ -257,7 +257,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='add-meal')openNewForm(null);
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
  else if(action==='member-view'){state.memberView=el.dataset.id;render()}
- else if(['profile','settings','display-name'].includes(action)){state.modal=action;render()}
+ else if(['profile','settings','display-name','weekly-activity'].includes(action)){state.modal=action;render()}
  else if(action==='edit-advice'){state.adviceEditDay=el.dataset.day||state.date;render();$('advice-text')?.focus()}
  else if(action==='cancel-advice'){state.adviceEditDay=null;render()}
  else if(action==='add-activity'){
@@ -459,6 +459,7 @@ async function saveDisplayName(form){
 function settingsModal(){
   const options=[
     ['display-name',`顯示名稱 · ${currentMember()?.display_name||'設定名稱'}`],
+    ['weekly-activity','固定運動日'],
     ['profile','身高、體重與活動量'],
     ['goal','每日熱量目標(kcal)',currentUserId()],
     state.space?['show-space',state.members.length===1?'單人使用 · 邀請夥伴':'雙人空間']:
@@ -627,8 +628,8 @@ function activityEntry(entry={}){
 function activityForm(){
   const {steps,extraKcal,entries}=readDayActivity();
   const activities=[...(entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]))];
-  if(currentMember()&&tennisDay(currentMember(),state.date)&&!activities.some(entry=>/網球|tennis/i.test(entry.name)))
-    activities.push({name:'網球',minutes:60});
+  const scheduled=currentMember()?scheduledActivity(currentMember(),state.date):'';
+  if(scheduled&&!activities.some(entry=>entry.name===scheduled))activities.push({name:scheduled,minutes:60});
   return `<form id="activity-form" class="summary-card activity-card">
     <h3>當日活動</h3>
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
@@ -682,14 +683,46 @@ async function saveAdvice(form){
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 
-function tennisDay(member,day){
-  if(member.display_name.toLowerCase()!=='jay'||day<'2026-11-08')return false;
+function weeklyActivity(member){
+  if(state.demo){
+    try{const saved=JSON.parse(localStorage.getItem('daily-plate-weekly-'+member.user_id));if(saved)return saved}catch{}
+  }
+  return {days:member.weekly_activity_days??(member.display_name.toLowerCase()==='jay'?[0]:[]),
+    name:member.weekly_activity_name||(member.display_name.toLowerCase()==='jay'?'網球':'運動')};
+}
+function scheduledActivity(member,day){
   const [year,month,date]=day.split('-').map(Number);
-  return new Date(year,month-1,date,12).getDay()===0;
+  const schedule=weeklyActivity(member);
+  return day>='2026-11-08'&&schedule.days.includes(new Date(year,month-1,date,12).getDay())?schedule.name:'';
 }
 function tennisNote(member,day,activity){
-  return tennisDay(member,day)&&!activity?.entries?.some(entry=>/網球|tennis/i.test(entry.name))
-    ? '<p class="tennis-note">網球 · 60 分鐘（預設）</p>':'';
+  const name=scheduledActivity(member,day);
+  return name&&!activity?.entries?.some(entry=>entry.name===name)
+    ? `<p class="tennis-note">${escapeHtml(name)} · 60 分鐘（預設）</p>`:'';
+}
+function weeklyActivityModal(){
+  const schedule=weeklyActivity(currentMember());
+  return journalModal('固定運動日',`<form id="weekly-activity-form">
+    <label class="field">運動名稱<input name="name" maxlength="40" required value="${escapeHtml(schedule.name)}"></label>
+    <fieldset class="weekly-days"><legend>每週哪幾天運動</legend>${[...'日一二三四五六'].map((label,day)=>
+      `<label><input type="checkbox" name="weekday" value="${day}" ${schedule.days.includes(day)?'checked':''}>週${label}</label>`).join('')}</fieldset>
+    <button class="btn btn-primary" type="submit">儲存固定運動日</button></form>`);
+}
+async function saveWeeklyActivity(form){
+  const member=currentMember(), data=new FormData(form);
+  const name=String(data.get('name')||'').trim(),days=data.getAll('weekday').map(Number);
+  if(!member||state.busy||!name||name.length>40)return;
+  setBusy(true);
+  try{
+    if(state.demo)localStorage.setItem('daily-plate-weekly-'+member.user_id,JSON.stringify({name,days}));
+    else{
+      const {error}=await client.from('memberships').update({weekly_activity_days:days,weekly_activity_name:name})
+        .eq('space_id',state.space.id).eq('user_id',member.user_id).select('user_id').single();
+      if(error)throw error;
+    }
+    member.weekly_activity_days=days;member.weekly_activity_name=name;
+    state.modal='settings';render();toast('固定運動日已儲存');
+  }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 function expenditureCard(member){
   const own=member.user_id===currentUserId();
@@ -726,14 +759,14 @@ function monthCalendar(){
     ${'<span></span>'.repeat(first.getDay())}
     ${Array.from({length:count},(_,i)=>{
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
-      const tennis=people.some(person=>tennisDay(person,day));
+      const scheduled=orderedMembers().map(person=>{const name=scheduledActivity(person,day);return name?person.display_name+' '+name+'日':''}).filter(Boolean);
       const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
       const ringColor=value=>value==null?'transparent':value<0?'#f4c9bd':value===0?'#e0e6e2':'#b9deca';
       const left=ringColor(values[0]), right=values.length>1?ringColor(values[1]):left;
-      return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${tennis?' Jay 網球日':''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
-        <span class="calendar-day-ring ${tennis?'calendar-tennis':''}" style="--left:${left};--right:${right}">${i+1}</span></button>`;
+      return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${scheduled.length?' '+escapeHtml(scheduled.join('、')):''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
+        <span class="calendar-day-ring ${scheduled.length?'calendar-tennis':''}" style="--left:${left};--right:${right}">${i+1}</span></button>`;
 
-    }).join('')}</div><details class="calendar-info"><summary>ⓘ 月曆圖例</summary><p class="tiny">收支＝估計消耗減去已記錄攝取。綠底為赤字、紅底為盈餘、灰底為持平。黃色外圈為 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></details></section>`;
+    }).join('')}</div></section>`;
 }
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
