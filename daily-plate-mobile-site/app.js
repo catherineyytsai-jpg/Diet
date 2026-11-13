@@ -62,7 +62,9 @@ async function loadMeals(){if(state.demo)return;
  const space=state.space.id, selected=state.date;
  const anchor=state.page==='records'?state.historyEnd||selected:selected;
  const start=shiftDate(selected<anchor?selected:anchor,-89);
- const end=selected>anchor?selected:anchor;
+ const [year,month]=selected.split('-').map(Number);
+ const monthEnd=dateKey(new Date(year,month,0,12));
+ const end=anchor>monthEnd?anchor:monthEnd;
  const meals=[];
  const pageSize=500;
  for(let offset=0;;offset+=pageSize){
@@ -120,11 +122,11 @@ function mobileNav(){
 }
 function datedHeader(title,id,brand=false){
   return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>${currentMember()?`<span class="account-circle" aria-label="登入帳號 ${escapeHtml(currentMember().display_name)}" title="${escapeHtml(currentMember().display_name)}">${escapeHtml(currentMember().display_name.slice(0,1))}</span>`: ''}
-    <div class="journal-date-tools"><div class="date-stepper" role="group" aria-label="日期切換">
+    ${brand?'':`<div class="journal-date-tools"><div class="date-stepper" role="group" aria-label="日期切換">
     <button type="button" data-action="prev-day" aria-label="前一天">‹</button>
     <label class="date-pill"><span aria-hidden="true">${state.date.replaceAll('-','/')}</span><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
     <button type="button" data-action="next-day" aria-label="後一天">›</button></div>
-    ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div></header>`;
+    ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div>`}</header>`;
 }
 function renderDashboard(){
   const meals=viewedMeals();
@@ -256,7 +258,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
  else if(action==='member-view'){state.memberView=el.dataset.id;render()}
  else if(['profile','settings','display-name'].includes(action)){state.modal=action;render()}
- else if(action==='edit-advice'){state.adviceEditDay=state.date;render();$('advice-text')?.focus()}
+ else if(action==='edit-advice'){state.adviceEditDay=el.dataset.day||state.date;render();$('advice-text')?.focus()}
  else if(action==='cancel-advice'){state.adviceEditDay=null;render()}
  else if(action==='add-activity'){
    const list=el.closest('form').querySelector('.activity-entries');
@@ -636,31 +638,31 @@ function activityForm(){
     <button class="btn btn-primary btn-small">儲存活動</button> <button type="button" class="btn btn-outline btn-small" data-action="cancel-activity">取消</button></form>`;
 }
 
-function adviceMeal(){
-  const meals=mealsOnDay();
+function adviceMeal(day=state.date){
+  const meals=state.meals.filter(meal=>meal.day===day);
   return meals.find(meal=>(meal.estimate_meta?.dailyAdvice||meal.estimate_meta?.mealPlans))||meals.at(-1);
 }
-function advicePanel(){
-  const meal=adviceMeal();
+function advicePanel(day=state.date){
+  const meal=adviceMeal(day);
   if(!meal)return '<p class="compact-empty">這天有餐點紀錄後，就可以留下建議。</p>';
   const advice=meal.estimate_meta?.dailyAdvice||'';
   const plans=meal.estimate_meta?.mealPlans||{};
   const fields=[['review','今天的餐點回顧'],['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐']];
-  const planCards=(state.adviceEditDay===state.date?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
+  const planCards=(state.adviceEditDay===day?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
     const value=plans[person.user_id]?.[key]||'';
     const heading=key==='breakfast'?'<h5>明天的三餐提案</h5>':'';
-    return heading+(state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`);
+    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`);
   }).join('')}</section>`).join('');
-  return `<section class="summary-card advice-card"><h3>${dayLabel(state.date)}的飲食建議</h3>
+  return `<section class="summary-card advice-card"><h3>${dayLabel(day)}的飲食建議</h3>
     
-    ${state.adviceEditDay===state.date?`<form id="advice-form">
+    ${state.adviceEditDay===day?`<form id="advice-form">
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
       <textarea id="advice-text" name="advice" rows="3" maxlength="1800">${escapeHtml(advice)}</textarea>
       ${planCards}<button class="btn btn-primary btn-small" type="submit">儲存建議</button><button type="button" class="btn btn-outline btn-small" data-action="cancel-advice">取消</button></form>`:
-    `${planCards}<button class="btn btn-outline btn-small" data-action="edit-advice">${advice?'修改建議':'新增建議'}</button>`}</section>`;
+    `${planCards}<button class="btn btn-outline btn-small" data-action="edit-advice" data-day="${day}">${advice?'修改建議':'新增建議'}</button>`}</section>`;
 }
 async function saveAdvice(form){
-  const meal=adviceMeal(), data=new FormData(form), advice=String(data.get('advice')||'').trim();
+  const meal=adviceMeal(state.adviceEditDay||state.date), data=new FormData(form), advice=String(data.get('advice')||'').trim();
   const previousPlans=meal?.estimate_meta?.mealPlans||{};
   const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,{...previousPlans[person.user_id],...Object.fromEntries(['review','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))}]));
   if(!meal||advice.length>1800||state.busy)return;
@@ -720,18 +722,18 @@ function monthCalendar(){
     <button class="btn btn-outline btn-small" data-action="calendar-month" data-offset="-1" aria-label="上個月">‹</button>
     <h3>${year} 年 ${month} 月</h3>
     <button class="btn btn-outline btn-small" data-action="calendar-month" data-offset="1" aria-label="下個月">›</button></div>
-    <div class="calendar-grid">${[...'日一二三四五六'].map(day=>`<span>${day}</span>`).join('')}
+    <div class="calendar-toolbar"><button class="btn btn-outline btn-small" data-action="today">今天</button></div><div class="calendar-grid">${[...'日一二三四五六'].map(day=>`<span>${day}</span>`).join('')}
     ${'<span></span>'.repeat(first.getDay())}
     ${Array.from({length:count},(_,i)=>{
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
       const tennis=people.some(person=>tennisDay(person,day));
       const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
-      const ringColor=value=>value==null?'transparent':value<0?'#b65337':value===0?'#76857d':'#328368';
+      const ringColor=value=>value==null?'transparent':value<0?'#f4c9bd':value===0?'#e0e6e2':'#b9deca';
       const left=ringColor(values[0]), right=values.length>1?ringColor(values[1]):left;
       return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${tennis?' Jay 網球日':''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
-        <span class="calendar-day-ring" style="--left:${left};--right:${right}"><span class="${tennis?'tennis-day':''}">${i+1}</span></span></button>`;
+        <span class="calendar-day-ring ${tennis?'calendar-tennis':''}" style="--left:${left};--right:${right}">${i+1}</span></button>`;
 
-    }).join('')}</div><details class="calendar-info"><summary>ⓘ 月曆圖例</summary><p class="tiny">綠圈 赤字 · 紅圈 盈餘 · 灰圈 持平 · 黃底 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></details></section>`;
+    }).join('')}</div><details class="calendar-info"><summary>ⓘ 月曆圖例</summary><p class="tiny">收支＝估計消耗減去已記錄攝取。綠底為赤字、紅底為盈餘、灰底為持平。黃色外圈為 Jay 網球日${people.length===2?` · 左 ${escapeHtml(people[0].display_name)}／右 ${escapeHtml(people[1].display_name)}`: ''}</p></details></section>`;
 }
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
@@ -765,8 +767,8 @@ function adviceRecords(){
   const people=viewedMembers();
   const days=[...new Set(state.meals.filter(meal=>meal.day>=start&&meal.day<=state.date&&
     people.some(person=>['review','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key]))).map(meal=>meal.day))].sort().reverse();
-  return sectionRange('advice')+advicePanel()+`<div class="journal-controls">${days.filter(day=>day!==state.date).map(day=>
-    `<button class="btn btn-outline btn-small" data-action="history-day" data-day="${day}">${dayLabel(day)} 的建議</button>`).join('')}</div>`;
+  if(!days.includes(state.date)&&adviceMeal())days.unshift(state.date);
+  return sectionRange('advice')+(days.length?days.map(advicePanel).join(''):advicePanel());
 }
 function recordsPage(){
   const tabs=[['meals','餐點紀錄'],['deficit','活動紀錄'],['calories','熱量紀錄'],['advice','建議']];
