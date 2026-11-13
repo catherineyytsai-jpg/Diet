@@ -512,12 +512,21 @@ function saveWeightGoal(form){
 }
 function weightProgress(){
   const goal=readWeightGoal(), current=n(readProfile().weight);
+  const member=currentMember(), today=dateKey(new Date()), baseline=dailyExpenditure(readProfile());
+  const days=[...new Set(state.meals.filter(meal=>meal.day<=today).map(meal=>meal.day))];
+  const balances=member&&goal?days.map(day=>historyBalance(member,day,day,baseline)).filter(value=>value!==null):[];
+  const net=balances.reduce((sum,value)=>sum+value,0);
+  const required=goal?(goal.start-goal.target)*7700:0;
+  const measured=current&&required?safePercent((goal.start-current)/(goal.start-goal.target)*100):0;
   return `<section class="summary-card weight-progress">
     <div class="card-top"><h2>體重進度</h2><button class="quiet" data-action="weight-goal">${goal?'修改目標':'設定目標體重'}</button></div>
     ${goal?`<dl class="weight-values"><div><dt>起始</dt><dd>${fixed(goal.start)} kg</dd></div><div><dt>目前</dt><dd>${current?fixed(current)+' kg':'待填寫'}</dd></div><div><dt>目標</dt><dd>${fixed(goal.target)} kg</dd></div></dl>
-      ${current?`<progress aria-label="體重目標進度" max="100" value="${safePercent((goal.start-current)/(goal.start-goal.target)*100)}"></progress>`:''}
+      ${current?`<p class="tiny">實測體重進度 ${fixed(measured)}%</p><progress aria-label="實測體重進度" max="100" value="${measured}"></progress>`:''}
       <p class="tiny">起始至目標的粗估總赤字 <b>${whole((goal.start-goal.target)*7700)} kcal</b>
       ${current>goal.target?` · 目前距目標 ${fixed(current-goal.target)} kg`:current?' · 已達目標':''}</p>
+      <p class="tiny">已載入的累積收支 <b class="${net<0?'trend-surplus':net>0?'trend-deficit':''}">${balances.length?balanceLabel(net):'尚無可計算的紀錄'}</b></p>
+      ${balances.length?`<progress aria-label="估算赤字進度" max="100" value="${safePercent(net/required*100)}"></progress>
+      <p class="tiny">估算赤字進度 ${fixed(safePercent(net/required*100))}% · 共 ${balances.length} 天有攝取及消耗估算</p>`:''}
       <p class="tiny">熱量以每公斤約 7,700 kcal 粗估，實際會因人而異。</p>
       <button class="btn btn-outline btn-small" data-action="profile">更新目前體重</button>`:'<p class="tiny">設定起始和目標體重，即可追蹤進度。</p>'}
   </section>`;
