@@ -213,3 +213,23 @@
   .journal-header .date-stepper input {display:block;min-width:0;width:100%;text-align:center}
   .journal-header .date-stepper input::-webkit-date-and-time-value {text-align:center}
 }
+@media(max-width:700px){
+ .date-stepper {grid-template-columns:44px minmax(0,1fr) 44px}
+ .journal-header .date-stepper .date-pill {display:block;min-width:0;max-width:100%;padding:0;overflow:hidden}
+ .journal-header .date-stepper input {appearance:none;-webkit-appearance:none;height:44px;margin:0;min-width:0;width:100%}
+}
+.modal.journal-sheet[data-closing] {animation:journal-sheet-out .17s ease-in forwards;pointer-events:none}
+@keyframes journal-sheet-out {to {transform:translateY(100%);opacity:.4}}
+.meal-gallery {position:relative;flex:0 0 clamp(84px,32%,148px);min-width:0;display:flex}
+.meal-gallery .meal-photo-strip {flex:1;scroll-snap-type:x mandatory;gap:0}
+.meal-photo-strip > button {flex:0 0 100%;min-width:0;scroll-snap-align:start;padding:0;border:0;background:none;cursor:pointer}
+.meal-gallery .meal-pic {display:block;width:100%;min-width:0;height:100%;object-fit:cover}
+.photo-dots {position:absolute;bottom:6px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:4px 6px;background:#18352caa;border-radius:12px;pointer-events:none}
+.photo-dots i {width:5px;height:5px;border-radius:50%;background:#fff}
+.meal-title {font:inherit;text-align:left;color:inherit;padding:0}
+.detail-photos {display:flex;overflow:auto;gap:8px;scroll-snap-type:x mandatory}
+.detail-photos img {width:100%;max-height:50dvh;object-fit:contain;flex:none;scroll-snap-align:start}
+.trend-horizontal,.advice-plan {padding:10px;background:#f2f6f3;border-radius:10px;margin:8px 0}
+.trend-horizontal > div {margin:5px 0}
+.advice-plan h4,.advice-plan p {margin:4px 0}
+.advice-plan label {display:grid;margin-top:6px}

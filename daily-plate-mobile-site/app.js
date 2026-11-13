@@ -89,7 +89,7 @@ function mealPhotos(meal){
 function photoSource(path){return state.demo||path.startsWith('data:')?path:state.imageUrls[path]}
 function mealPhoto(meal){
   const sources=mealPhotos(meal).map(photoSource).filter(Boolean);
-  return sources.length?`<div class="meal-photo-strip">${sources.map(src=>`<img class="meal-pic" alt="餐點照片" loading="lazy" src="${escapeHtml(src)}">`).join('')}</div>`:'';
+  return sources.length?`<div class="meal-gallery"><div class="meal-photo-strip">${sources.map((src,i)=>`<button type="button" data-action="meal-detail" data-id="${meal.id}" aria-label="查看餐點照片 ${i+1}"><img class="meal-pic" alt="餐點照片" loading="lazy" src="${escapeHtml(src)}"></button>`).join('')}</div>${sources.length>1?`<div class="photo-dots" aria-label="${sources.length} 張照片">${sources.map(()=>'<i></i>').join('')}</div>`:''}</div>`:'';
 }
 function viewedMembers(){
   const people=orderedMembers();
@@ -111,7 +111,7 @@ function viewedMeals(){
 }
 function mealCard(meal){
   const title=(meal.items||[]).map(item=>item.name).filter(Boolean).slice(0,3).join('、')||'餐點';
-  return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3>${escapeHtml(title)}</h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
+  return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content" data-action="meal-detail" data-id="${meal.id}"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3><button class="quiet meal-title" data-action="meal-detail" data-id="${meal.id}">${escapeHtml(title)}</button></h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
  const links=[['records','記錄','≡'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙']];
@@ -139,13 +139,22 @@ function renderDashboard(){
     </main>${mobileNav()}${state.modal?renderModal():''}`;
 }
 function render(){const previousModalScroll=document.querySelector('.modal')?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');if(updatedModal)updatedModal.scrollTop=previousModalScroll}
-function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],dailyAdvice:meal?.estimate_meta?.dailyAdvice||'',estimated:meal?.estimate_meta||null}}
+function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],originalMeta:meal?.estimate_meta,dailyAdvice:meal?.estimate_meta?.dailyAdvice||'',estimated:meal?.estimate_meta||null}}
 function openNewForm(meal){state.photoDrafts=[];state.currentForm=makeMealDraft(meal);state.modal='meal';render()}
 function formItem(i,item){const people=orderedMembers();return `<div class="editor-item" data-item="${i}"><div class="editor-top"><input aria-label="食物名稱" data-field="name" data-index="${i}" value="${escapeHtml(item.name)}" placeholder="食物名稱"><button class="quiet" data-action="remove-item" data-index="${i}">移除</button></div><div class="mini-grid">${[['kcal','熱量 kcal'],['protein_g','蛋白質 g'],['carbs_g','碳水 g'],['fat_g','脂肪 g']].map(([field,label])=>`<label>${label}<input type="number" min="0" step="0.1" data-field="${field}" data-index="${i}" value="${n(item[field])}"></label>`).join('')}</div><div class="split-grid">${people.map(p=>`<label>${people.length>1?`<strong class="portion-person">${escapeHtml(p.display_name)}</strong>`:''}吃了多少%<input type="number" inputmode="numeric" min="0" max="100" data-share-user="${p.user_id}" data-index="${i}" value="${Math.round(safePercent(item.shares?.[p.user_id]||0))}"></label>`).join('')}</div>${item.portion?`<div class="tiny">AI 推估份量：${escapeHtml(item.portion)}</div>`:''}<div class="tiny">食用百分比合計不可超過 100%；未分配的部分視為剩餘食物。</div></div>`}
 let deferredInstallPrompt=null;
 window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event});
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;toast('已加入手機主畫面')});
-function renderModal(){if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
+function renderModal(){
+ if(state.modal==='meal-detail'){
+   const meal=state.meals.find(row=>row.id===state.detailMeal);
+   if(!meal)return '';
+   return journalModal(mealNames(meal.meal_type),`<div class="detail-photos">${mealPhotos(meal).map(photoSource).filter(Boolean).map(src=>`<img src="${escapeHtml(src)}" alt="餐點照片">`).join('')}</div>
+   <p>${escapeHtml(meal.restaurant||'')} ${escapeHtml(meal.note||'')}</p><ul>${meal.items.map(item=>`<li>${escapeHtml(item.name)} · ${whole(item.kcal)} kcal</li>`).join('')}</ul>
+   <p>${orderedMembers().map(member=>`${escapeHtml(member.display_name)} · ${whole(personTotals([meal],member.user_id).kcal)} kcal`).join(' / ')}</p>
+   <button class="btn btn-outline" data-action="edit-meal" data-id="${meal.id}">修改餐點</button>`);
+ }
+if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
@@ -183,7 +192,7 @@ async function saveMeal(){collectFormBasic();const f=state.currentForm;if(!f.ite
    if(state.demo||!photo.startsWith('data:')){paths.push(photo);continue}
    const path=await uploadPhoto(photo);uploaded.push(path);paths.push(path);
  }
- const meal={day:f.day,meal_type:f.meal_type,note:f.note,restaurant:f.restaurant,image_path:paths[0]||null,items:f.items,estimate_meta:{...f.estimated,extraPhotos:paths.slice(1),...(f.dailyAdvice?{dailyAdvice:f.dailyAdvice}:{})}};
+ const meal={day:f.day,meal_type:f.meal_type,note:f.note,restaurant:f.restaurant,image_path:paths[0]||null,items:f.items,estimate_meta:{...f.originalMeta,...f.estimated,extraPhotos:paths.slice(1),...(f.dailyAdvice?{dailyAdvice:f.dailyAdvice}:{})}};
  if(state.demo){if(f.id){const i=state.meals.findIndex(m=>m.id===f.id);if(i>=0)state.meals[i]={...state.meals[i],...meal}}else state.meals.unshift({...meal,id:newUUID(),created_at:new Date().toISOString(),created_by:currentUserId(),space_id:'demo'});demoWrite()}
  else{let response;if(f.id)response=await client.from('meals').update(meal).eq('id',f.id).eq('space_id',state.space.id);else response=await client.from('meals').insert({...meal,space_id:state.space.id,created_by:currentUserId()});if(response.error)throw response.error;committed=true;state.date=f.day;
  try{await loadMeals()}catch{state.modal=null;state.currentForm=null;render();return toast('已儲存到雲端，請重新整理以載入餐點')}}
@@ -254,6 +263,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
    if(list.children.length<12){list.insertAdjacentHTML('beforeend',activityEntry());list.lastElementChild.querySelector('input').focus()}
  }
  else if(action==='remove-activity')el.closest('.activity-entry').remove()
+ else if(action==='history-style'){state.historyStyle=el.dataset.style;render()}
  else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
  else if(action==='record-tab'){state.recordTab=el.dataset.tab;render()}
@@ -266,9 +276,16 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  }
  else if(action==='show-install'){state.modal='install';render()}
  else if(action==='native-install'&&deferredInstallPrompt){const install=deferredInstallPrompt;deferredInstallPrompt=null;install.prompt();await install.userChoice.catch(()=>{});state.modal=null;render()}
+ else if(action==='meal-detail'){state.detailMeal=el.dataset.id;state.modal='meal-detail';render()}
  else if(action==='edit-meal'){const meal=state.meals.find(m=>m.id===el.dataset.id);if(meal)openNewForm(meal)}
  else if(action==='close-modal'){
    if(state.photoDrafts?.length>1&&!confirm('要關閉並放棄尚未儲存的餐點草稿嗎？'))return;
+   const sheet=document.querySelector('.journal-sheet');
+   if(sheet&&sheet.dataset.closing)return;
+   if(sheet&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+     sheet.dataset.closing='true';
+     await new Promise(resolve=>setTimeout(resolve,170));
+   }
    state.photoDrafts=[];state.modal=null;state.currentForm=null;render();
  }
  else if(action==='show-space'){state.modal='space';render()}
@@ -517,11 +534,15 @@ function dailyHistory(){
   const palette=people.map(member=>colors[orderedMembers().findIndex(person=>person.user_id===member.user_id)]||colors[0]);
   const labels=length===7?series.map((_,i)=>i):[0,Math.floor((series.length-1)/2),series.length-1];
   const dateLabel=day=>day.slice(5).replace('-','/');
+  const horizontal=state.historyStyle==='bars';
+  const styles=`<div class="journal-controls" role="group" aria-label="圖表樣式"><button class="btn btn-small ${horizontal?'btn-outline':'btn-primary'}" data-action="history-style" data-style="line" aria-pressed="${!horizontal}">折線圖</button><button class="btn btn-small ${horizontal?'btn-primary':'btn-outline'}" data-action="history-style" data-style="bars" aria-pressed="${horizontal}">橫條圖</button></div>`;
   return `<section class="trend-card" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
-    <p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
-    <div class="trend-panels">${people.map((member,j)=>{
+    ${styles}<p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
+    ${horizontal?`<div class="daily-chart">${series.map((row,i)=>`<div class="trend-horizontal"><strong>${dateLabel(row.end)}</strong>
+    ${row.values.map((value,j)=>`<div>${escapeHtml(people[j].display_name)} · ${value===null?'未記錄':whole(value)+' kcal'}${balances[i][j]===null?'':` · ${balanceLabel(balances[i][j])}`}
+    ${value===null?'':`<span class="daily-chart-track"><span style="width:${value/max*100}%;background:${palette[j]}"></span></span>`}</div>`).join('')}</div>`).join('')}</div>`:`<div class="trend-panels">${people.map((member,j)=>{
       const totals=series.map(row=>row.values[j]).filter(value=>value!==null);
       const average=totals.length?whole(totals.reduce((sum,value)=>sum+value,0)/totals.length)+' kcal':'未記錄';
       const hasBalance=balances.some(row=>row[j]!==null);
@@ -548,7 +569,7 @@ function dailyHistory(){
         ${length===7?`<text x="${x(i)}" y="${value>=0?top-4:top+height+11}" text-anchor="middle">${whole(Math.abs(value))}</text>`:''}`;
       }).join('')}`:''}</svg>
       <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。夥伴使用共用的平常消耗估算。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
-    }).join('')}</div>
+    }).join('')}</div>`}
     <details class="trend-details"><summary>查看數字</summary>
     ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
       <span>${dateLabel(start)}${start!==end?`–${dateLabel(end)}`:''}</span>
@@ -592,30 +613,37 @@ function activityForm(){
 
 function adviceMeal(){
   const meals=mealsOnDay();
-  return meals.find(meal=>meal.estimate_meta?.dailyAdvice)||meals.at(-1);
+  return meals.find(meal=>(meal.estimate_meta?.dailyAdvice||meal.estimate_meta?.mealPlans))||meals.at(-1);
 }
 function advicePanel(){
   const meal=adviceMeal();
   if(!meal)return '<p class="compact-empty">這天有餐點紀錄後，就可以留下建議。</p>';
   const advice=meal.estimate_meta?.dailyAdvice||'';
+  const plans=meal.estimate_meta?.mealPlans||{};
+  const fields=[['next','下一餐'],['breakfast','明天早餐'],['lunch','明天午餐'],['dinner','明天晚餐']];
+  const planCards=orderedMembers().map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
+    const value=plans[person.user_id]?.[key]||'';
+    return state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`;
+  }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>當日飲食建議</h3>
     ${advice?`<p class="advice-text">${escapeHtml(advice)}</p>`:'<p class="tiny">這天還沒有建議。</p>'}
     ${state.adviceEditDay===state.date?`<form id="advice-form">
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
-      <textarea id="advice-text" name="advice" rows="4" maxlength="1800" required>${escapeHtml(advice)}</textarea>
-      <button class="btn btn-primary btn-small" type="submit">儲存建議</button><button type="button" class="btn btn-outline btn-small" data-action="cancel-advice">取消</button></form>`:
-    `<button class="btn btn-outline btn-small" data-action="edit-advice">${advice?'修改建議':'新增建議'}</button>`}</section>`;
+      <textarea id="advice-text" name="advice" rows="3" maxlength="1800">${escapeHtml(advice)}</textarea>
+      ${planCards}<button class="btn btn-primary btn-small" type="submit">儲存建議</button><button type="button" class="btn btn-outline btn-small" data-action="cancel-advice">取消</button></form>`:
+    `${planCards}<button class="btn btn-outline btn-small" data-action="edit-advice">${advice?'修改建議':'新增建議'}</button>`}</section>`;
 }
 async function saveAdvice(form){
-  const meal=adviceMeal(), advice=String(new FormData(form).get('advice')||'').trim();
-  if(!meal||!advice||advice.length>1800||state.busy)return;
+  const meal=adviceMeal(), data=new FormData(form), advice=String(data.get('advice')||'').trim();
+  const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,Object.fromEntries(['next','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))]));
+  if(!meal||advice.length>1800||state.busy)return;
   setBusy(true);
   try{
-    const meta={...meal.estimate_meta,dailyAdvice:advice};
+    const meta={...meal.estimate_meta,dailyAdvice:advice,mealPlans};
     if(!state.demo){
       const {data,error}=await client.from('meals').select('estimate_meta').eq('id',meal.id).eq('space_id',state.space.id).single();
       if(error)throw error;
-      Object.assign(meta,data.estimate_meta,{dailyAdvice:advice});
+      Object.assign(meta,data.estimate_meta,{dailyAdvice:advice,mealPlans});
       const update=await client.from('meals').update({estimate_meta:meta}).eq('id',meal.id).eq('space_id',state.space.id).select('id').single();
       if(update.error)throw update.error;
     }
