@@ -136,14 +136,14 @@ function renderDashboard(){
   app.innerHTML=`<main class="layout compact-dashboard">
     ${datedHeader('Daily Plate','date-control',true)}
     ${state.demo?'<p class="tiny">預覽模式 · 資料儲存在此瀏覽器</p>':state.notice?alertBanner():''}
-    ${memberPicker()}${monthCalendar()}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
+    ${memberPicker()}${monthCalendar()}${viewedMembers().some(member=>member.user_id===currentUserId())?weightProgress():''}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
       <div class="summary-grid">${viewedMembers().map(summaryCard).join('')}</div></section>
     <section id="meal-section"><div class="section-title"><h2>餐點紀錄</h2><small>${meals.length} 筆</small></div>
       <div class="meal-list">${meals.length?meals.map(mealCard).join(''):'<p class="compact-empty">這天還沒有餐點紀錄。</p>'}</div></section>
     </main>${mobileNav()}${state.modal?renderModal():''}`;
 }
 function render(){const previousModal=document.querySelector('.modal');const previousModalScroll=previousModal?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');
- if(updatedModal&&state.settingsChild&&['profile','display-name','weekly-activity','goal','space','install'].includes(state.modal)){
+ if(updatedModal&&state.settingsChild&&['profile','display-name','weekly-activity','goal','weight-goal','space','install'].includes(state.modal)){
    updatedModal.classList.add('journal-sheet','settings-sheet');
    updatedModal.removeAttribute('data-compact-modal');
    updatedModal.querySelector('.modal-head')?.insertAdjacentHTML('afterbegin','<button type="button" class="x" data-action="back-settings" aria-label="返回設定">‹</button>');
@@ -166,7 +166,7 @@ function renderModal(){
    <p>${orderedMembers().map(member=>`${escapeHtml(member.display_name)} · ${whole(personTotals([meal],member.user_id).kcal)} kcal`).join(' / ')}</p>
    <button class="btn btn-outline" data-action="edit-meal" data-id="${meal.id}">修改餐點</button>`);
  }
-if(state.modal==='weekly-activity')return weeklyActivityModal();if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
+if(state.modal==='weight-goal')return weightGoalModal();if(state.modal==='weekly-activity')return weeklyActivityModal();if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal')return goalModal();if(state.modal==='settings')return settingsModal();if(state.modal==='profile')return profileModal();if(state.modal==='install'){const standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);return `<div class="modal-backdrop"><div class="modal settings-panel" role="dialog" aria-modal="true" aria-label="安裝手機 App"><div class="modal-head"><div><p class="eyebrow">DAILY PLATE ON YOUR PHONE</p><h2>加入手機主畫面</h2></div><button class="x" data-action="close-modal" aria-label="關閉">×</button></div>${standalone?'<p>你已經從手機主畫面開啟 Daily Plate。</p>':ios?'<p>在 <b>Safari</b> 開啟網站，點下方「分享」圖示，選擇 <b>加入主畫面</b>，再點「加入」。</p>':'<p>在 <b>Chrome</b> 開啟網站，點選右上角選單，再選擇 <b>安裝應用程式</b> 或 <b>加入主畫面</b>。</p>'}${!standalone&&deferredInstallPrompt?'<button class="btn btn-primary fill" data-action="native-install">直接安裝</button>':''}<div class="hint-card" style="margin-top:18px"><b>使用前須先部署</b>必須先有 HTTPS 網站網址。安裝到主畫面不會自動啟用雙人同步或 AI；這兩項仍需完成雲端設定。</div></div></div>`}
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
@@ -249,7 +249,7 @@ async function saveGoal(form){
     toast('每日目標已更新');
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
-document.addEventListener('submit',async e=>{if(e.target.id==='weekly-activity-form'){e.preventDefault();await saveWeeklyActivity(e.target)}if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
+document.addEventListener('submit',async e=>{if(e.target.id==='weight-goal-form'){e.preventDefault();saveWeightGoal(e.target)}if(e.target.id==='weekly-activity-form'){e.preventDefault();await saveWeeklyActivity(e.target)}if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
  if(action==='settings')state.settingsChild=false;
  if(el.hasAttribute('data-settings-link'))state.settingsChild=true;
@@ -270,7 +270,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='records'){state.page='records';state.historyEnd=state.date;render()}
  else if(action==='member-view'){state.memberView=el.dataset.id;render()}
  else if(action==='edit-profile'){state.profileEditing=true;render()}
- else if(['profile','settings','display-name','weekly-activity'].includes(action)){state.profileEditing=false;state.modal=action;render()}
+ else if(['profile','settings','display-name','weekly-activity','weight-goal'].includes(action)){state.profileEditing=false;state.modal=action;render()}
  else if(action==='edit-advice'){state.adviceEditDay=el.dataset.day||state.date;render();$('advice-text')?.focus()}
  else if(action==='cancel-advice'){state.adviceEditDay=null;render()}
  else if(action==='add-activity'){
@@ -475,6 +475,7 @@ function settingsModal(){
     ['display-name','顯示名稱',null,currentMember()?.display_name],
     ['weekly-activity','固定運動日',null,weeklyActivity(currentMember()).days.slice().sort().map(day=>'週'+'日一二三四五六'[day]).join('、') || '未設定'],
     ['profile','身高、體重與活動量',null,dailyExpenditure(readProfile())?'已設定':'未設定'],
+    ['weight-goal','目標體重',null,readWeightGoal()?.target?fixed(readWeightGoal().target)+' kg':'未設定'],
     ['goal','每日熱量目標',currentUserId(),currentMember()?.daily_goal?whole(currentMember().daily_goal)+' kcal':'未設定'],
     state.space?['show-space',state.members.length===1?'單人使用 · 邀請夥伴':'雙人空間']:
       ['demo-mode',state.members.length===1?'切換雙人試用':'切換單人試用'],
@@ -485,6 +486,42 @@ function settingsModal(){
     `<button class="settings-row" data-settings-link data-action="${action}" ${user?`data-user="${user}"`:''}><span>${escapeHtml(label)}</span>${value?`<small>${escapeHtml(value)}</small>`:''}<span class="settings-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`);
 }
 
+function weightGoalKey(){return `daily-plate-weight-goal-${currentUserId()}`}
+function readWeightGoal(){
+  try{return JSON.parse(localStorage.getItem(weightGoalKey()))}catch{return null}
+}
+function weightGoalModal(){
+  const saved=readWeightGoal(), current=n(readProfile().weight);
+  return journalModal('目標體重',`<form id="weight-goal-form">
+    <label class="field" for="weight-start">起始體重（kg）</label>
+    <input id="weight-start" name="start" type="number" min="20" max="400" step="0.1" value="${saved?.start||current||''}" required>
+    <label class="field" for="weight-target">目標體重（kg）</label>
+    <input id="weight-target" name="target" type="number" min="20" max="400" step="0.1" value="${saved?.target||''}" required>
+    <p class="tiny">目標存在此瀏覽器。請在個人資料更新實際量到的體重。</p>
+    <button class="btn btn-primary" type="submit">儲存目標體重</button>
+  </form>`);
+}
+function saveWeightGoal(form){
+  const data=new FormData(form), start=n(data.get('start')), target=n(data.get('target'));
+  if(target>=start)return toast('目標體重須低於起始體重');
+  try{
+    localStorage.setItem(weightGoalKey(),JSON.stringify({start,target}));
+    state.modal=state.settingsChild?'settings':null;
+    render();toast('目標體重已儲存');
+  }catch{toast('瀏覽器無法儲存目標體重')}
+}
+function weightProgress(){
+  const goal=readWeightGoal(), current=n(readProfile().weight);
+  return `<section class="summary-card weight-progress">
+    <div class="card-top"><h2>體重進度</h2><button class="quiet" data-action="weight-goal">${goal?'修改目標':'設定目標體重'}</button></div>
+    ${goal?`<dl class="weight-values"><div><dt>起始</dt><dd>${fixed(goal.start)} kg</dd></div><div><dt>目前</dt><dd>${current?fixed(current)+' kg':'待填寫'}</dd></div><div><dt>目標</dt><dd>${fixed(goal.target)} kg</dd></div></dl>
+      ${current?`<progress aria-label="體重目標進度" max="100" value="${safePercent((goal.start-current)/(goal.start-goal.target)*100)}"></progress>`:''}
+      <p class="tiny">起始至目標的粗估總赤字 <b>${whole((goal.start-goal.target)*7700)} kcal</b>
+      ${current>goal.target?` · 目前距目標 ${fixed(current-goal.target)} kg`:current?' · 已達目標':''}</p>
+      <p class="tiny">熱量以每公斤約 7,700 kcal 粗估，實際會因人而異。</p>
+      <button class="btn btn-outline btn-small" data-action="profile">更新目前體重</button>`:'<p class="tiny">設定起始和目標體重，即可追蹤進度。</p>'}
+  </section>`;
+}
 function profileModal(){
   const p=readProfile(), expenditure=dailyExpenditure(p);
   if(!expenditure||state.profileEditing)return journalModal('個人資料',profileForm());
@@ -581,7 +618,7 @@ function dailyHistory(){
     return `<div class="trend-kpi"><strong>${escapeHtml(member.display_name)}</strong>
       <span>攝取 <b>${value===null?'未記錄':whole(value)+' kcal'}</b></span>
       <span>估計消耗 <b>${expenditure===null?'—':whole(expenditure)+' kcal'}</b></span>
-      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
+      <span class="${balance<0?'trend-surplus':balance>0?'trend-deficit':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
   }).join('');
   const periodCard=`<section class="period-balance"><h3>${length} 天累積收支</h3><details class="inline-info"><summary aria-label="累積收支說明">ⓘ</summary><p>只加總有攝取及消耗估算的日期。</p></details>
     <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong class="${periodNetBalance(member,end,length,baseline)<0?'trend-surplus':periodNetBalance(member,end,length,baseline)>0?'trend-deficit':''}">${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
@@ -613,7 +650,7 @@ function dailyHistory(){
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
       <span>${dateLabel(row.start)}${row.start!==row.end?'–'+dateLabel(row.end):''}<small>${escapeHtml(people[j].display_name)}</small></span>
       <span><b>${whole(value)}</b><span class="daily-chart-track"><span style="width:${value/max*100}%;background:${palette[j]}"></span></span></span>
-      <span class="${row.balances[j]<0?'trend-surplus':''}">${row.balances[j]===null?'—':balanceLabel(row.balances[j])}</span>
+      <span class="${row.balances[j]<0?'trend-surplus':row.balances[j]>0?'trend-deficit':''}">${row.balances[j]===null?'—':balanceLabel(row.balances[j])}</span>
     </div>`).join('')).join('')||'<p>這段期間還沒有紀錄。</p>'}</div>`:`<div class="trend-panels">${people.map((member,j)=>{
       const totals=series.map(row=>row.values[j]).filter(value=>value!==null);
       const average=totals.length?whole(totals.reduce((sum,value)=>sum+value,0)/totals.length)+' kcal':'未記錄';
@@ -779,7 +816,6 @@ function expenditureCard(member){
       <span>額外活動消耗 <strong>${whole(extra)+' kcal'}</strong></span>
       <span>估計總消耗 <strong>${baseline?whole(baseline+extra)+' kcal':'—'}</strong></span>
     </div>
-    ${own?'':'<p class="tiny">夥伴的總消耗包含固定運動估算，手動調整保存在對方的瀏覽器。</p>'}
     ${baseline||!own?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
   </section>`;
 }
