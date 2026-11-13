@@ -749,11 +749,14 @@ function advicePanel(day=state.date){
   if(!meal)return '<p class="compact-empty">這天有餐點紀錄後，就可以留下建議。</p>';
   const advice=meal.estimate_meta?.dailyAdvice||'';
   const plans=meal.estimate_meta?.mealPlans||{};
-  const fields=[['review','今天的餐點回顧'],['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐']];
+  const fields=[['review','餐點回顧'],['recommendation','飲食建議'],['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐']];
   const planCards=(state.adviceEditDay===day?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
-    const value=plans[person.user_id]?.[key]||'';
+    const plan=plans[person.user_id]||{};
+    const legacy=plan.review?.match(/^(.+?[。；])((?:今晚|晚餐可).+)$/s);
+    const value=plan[key]??(key==='recommendation'?legacy?.[2]:null)??'';
+    const displayValue=key==='review'&&legacy&&plan.recommendation==null?legacy[1]:value;
     const heading=key==='breakfast'?'<h5>明天的三餐提案</h5>':'';
-    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p class="advice-line"><strong>${label}</strong><span>${escapeHtml(value||'待補上')}</span></p>`);
+    return heading+(state.adviceEditDay===day?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(displayValue)}"></label>`:`<p class="advice-line"><strong>${label}</strong><span>${escapeHtml(displayValue||'待補上')}</span></p>`);
   }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>${dayLabel(day)}的飲食建議</h3>
     
@@ -766,7 +769,7 @@ function advicePanel(day=state.date){
 async function saveAdvice(form){
   const meal=adviceMeal(state.adviceEditDay||state.date), data=new FormData(form), advice=String(data.get('advice')||'').trim();
   const previousPlans=meal?.estimate_meta?.mealPlans||{};
-  const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,{...previousPlans[person.user_id],...Object.fromEntries(['review','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))}]));
+  const mealPlans=Object.fromEntries(orderedMembers().map(person=>[person.user_id,{...previousPlans[person.user_id],...Object.fromEntries(['review','recommendation','breakfast','lunch','dinner'].map(key=>[key,String(data.get(`plan:${person.user_id}:${key}`)||'').trim()]))}]));
   if(!meal||advice.length>1800||state.busy)return;
   setBusy(true);
   try{
@@ -900,7 +903,7 @@ function adviceRecords(){
   const count=state.adviceRange||7,start=shiftDate(state.date,1-count);
   const people=viewedMembers();
   const days=[...new Set(state.meals.filter(meal=>meal.day>=start&&meal.day<=state.date&&
-    (meal.estimate_meta?.dailyAdvice?.trim()||people.some(person=>['review','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key])))).map(meal=>meal.day))].sort().reverse();
+    (meal.estimate_meta?.dailyAdvice?.trim()||people.some(person=>['review','recommendation','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key])))).map(meal=>meal.day))].sort().reverse();
   if(!days.includes(state.date)&&adviceMeal())days.unshift(state.date);
   return sectionRange('advice')+(days.length?days.map(advicePanel).join(''):advicePanel());
 }
