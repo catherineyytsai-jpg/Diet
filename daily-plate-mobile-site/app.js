@@ -122,7 +122,7 @@ function datedHeader(title,id,brand=false){
   return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>
     <div class="journal-date-tools"><div class="date-stepper" role="group" aria-label="日期切換">
     <button type="button" data-action="prev-day" aria-label="前一天">‹</button>
-    <label class="date-pill"><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
+    <label class="date-pill"><span aria-hidden="true">${state.date.replaceAll('-','/')}</span><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
     <button type="button" data-action="next-day" aria-label="後一天">›</button></div>
     ${state.date!==dateKey(new Date())?'<button class="btn btn-outline btn-small today-shortcut" data-action="today">今天</button>':''}</div></header>`;
 }
@@ -536,13 +536,25 @@ function dailyHistory(){
   const dateLabel=day=>day.slice(5).replace('-','/');
   const horizontal=state.historyStyle==='bars';
   const styles=`<div class="journal-controls" role="group" aria-label="圖表樣式"><button class="btn btn-small ${horizontal?'btn-outline':'btn-primary'}" data-action="history-style" data-style="line" aria-pressed="${!horizontal}">折線圖</button><button class="btn btn-small ${horizontal?'btn-primary':'btn-outline'}" data-action="history-style" data-style="bars" aria-pressed="${horizontal}">橫條圖</button></div>`;
+  const summary=people.map((member,j)=>{
+    const value=historySeries([member],state.date,7).at(-1).values[0];
+    const balance=historyBalance(member,state.date,state.date,baseline);
+    return `<div class="trend-kpi"><strong style="color:${palette[j]}">${escapeHtml(member.display_name)}</strong>
+      <span>攝取 <b>${value===null?'未記錄':whole(value)+' kcal'}</b></span>
+      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
+  }).join('');
+  const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
   return `<section class="trend-card" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
+    <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>
     ${styles}<p class="tiny">${length===7?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
-    ${horizontal?`<div class="daily-chart">${series.map((row,i)=>`<div class="trend-horizontal"><strong>${dateLabel(row.end)}</strong>
-    ${row.values.map((value,j)=>`<div>${escapeHtml(people[j].display_name)} · ${value===null?'未記錄':whole(value)+' kcal'}${balances[i][j]===null?'':` · ${balanceLabel(balances[i][j])}`}
-    ${value===null?'':`<span class="daily-chart-track"><span style="width:${value/max*100}%;background:${palette[j]}"></span></span>`}</div>`).join('')}</div>`).join('')}</div>`:`<div class="trend-panels">${people.map((member,j)=>{
+    ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
+    ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
+      <span>${dateLabel(row.start)}${row.start!==row.end?'–'+dateLabel(row.end):''}<small>${escapeHtml(people[j].display_name)}</small></span>
+      <span><b>${whole(value)}</b><span class="daily-chart-track"><span style="width:${value/max*100}%;background:${palette[j]}"></span></span></span>
+      <span class="${row.balances[j]<0?'trend-surplus':''}">${row.balances[j]===null?'—':balanceLabel(row.balances[j])}</span>
+    </div>`).join('')).join('')||'<p>這段期間還沒有紀錄。</p>'}</div>`:`<div class="trend-panels">${people.map((member,j)=>{
       const totals=series.map(row=>row.values[j]).filter(value=>value!==null);
       const average=totals.length?whole(totals.reduce((sum,value)=>sum+value,0)/totals.length)+' kcal':'未記錄';
       const hasBalance=balances.some(row=>row[j]!==null);
@@ -556,7 +568,7 @@ function dailyHistory(){
         if(value===null)return '';
         return `${previous!=null?`<line x1="${x(i-1)}" y1="${y(previous)}" x2="${x(i)}" y2="${y(value)}" stroke="${palette[j]}" stroke-width="2.5"/>`:''}
           <circle cx="${x(i)}" cy="${y(value)}" r="3.5" fill="${palette[j]}"><title>${dateLabel(series[i].end)} · ${whole(value)} kcal</title></circle>
-          ${length===7?`<text x="${x(i)}" y="${y(value)-8}" text-anchor="middle">${whole(value)}</text>`:''}`;
+          ${length===7&&series[i].end===state.date?`<text x="${x(i)}" y="${y(value)-8}" text-anchor="middle">${whole(value)}</text>`:''}`;
       }).join('')}
       ${hasBalance?`<text x="52" y="158">${length===7?'每日收支':'每週平均收支'}</text>
       <line x1="52" x2="338" y1="198" y2="198" stroke="#a0b7a9"/><text x="46" y="202" text-anchor="end">0</text>
@@ -570,11 +582,7 @@ function dailyHistory(){
       }).join('')}`:''}</svg>
       <p class="tiny">${hasBalance?'綠色向上為赤字，紅色向下為盈餘。夥伴使用共用的平常消耗估算。':'有飲食紀錄與可用的消耗估算時顯示赤字。'}</p></div>`;
     }).join('')}</div>`}
-    <details class="trend-details"><summary>查看數字</summary>
-    ${series.map(({start,end,values})=>`<button class="trend-row" data-action="history-day" data-day="${end}">
-      <span>${dateLabel(start)}${start!==end?`–${dateLabel(end)}`:''}</span>
-      ${values.map((value,i)=>{const balance=historyBalance(people[i],start,end,baseline);return `<span>${escapeHtml(people[i].display_name)} · ${value===null?'未記錄':historyValueLabel(value,people[i],end,length)}${balance===null?'':` · ${balanceLabel(balance)}`}</span>`}).join('')}</button>`).join('')}
-    </details></section>`;
+</section>`;
 }
 function activityKey(day=state.date){
   return `daily-plate-activity-${currentUserId()}-${day}`;
@@ -653,17 +661,19 @@ async function saveAdvice(form){
   }catch(error){toast(friendlyError(error))}finally{setBusy(false)}
 }
 
-function expenditureCard(){
-  const baseline=dailyExpenditure(readProfile())||n(currentMember()?.baseline_kcal);
-  const extra=n(readDayActivity().extraKcal);
+function expenditureCard(member){
+  const own=member.user_id===currentUserId();
+  const baseline=(own?dailyExpenditure(readProfile()):0)||n(member.baseline_kcal);
+  const extra=own?n(readDayActivity().extraKcal):null;
   return `<section class="summary-card day-balance"><h3>當日熱量消耗</h3>
-    <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(currentMember()?.display_name||'')}</p>
+    <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(member.display_name)}</p>
     <div class="balance-values expenditure-values">
       <span>平常估計消耗 <strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
-      <span>額外活動消耗 <strong>${whole(extra)} kcal</strong></span>
-      <span>估計總消耗 <strong>${baseline?whole(baseline+extra)+' kcal':'—'}</strong></span>
+      <span>額外活動消耗 <strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
+      <span>估計總消耗 <strong>${baseline?whole(baseline+(extra??0))+' kcal':'—'}</strong></span>
     </div>
-    ${baseline?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
+    ${own?'':'<p class="tiny">夥伴的額外活動未同步，總消耗僅列平常估算。</p>'}
+    ${baseline||!own?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
   </section>`;
 }
 function recordsPage(){
@@ -673,9 +683,9 @@ function recordsPage(){
     meals:()=>meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
     calories:dailyHistory,
     advice:advicePanel,
-    deficit:()=>expenditureCard()+activityForm()
+    deficit:()=>viewedMembers().map(expenditureCard).join('')+(viewedMembers().some(person=>person.user_id===currentUserId())?activityForm():'')
   };
-  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${['deficit','advice'].includes(active)?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
+  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${active==='advice'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
   <div class="meal-list">${contents[active]()}</div></main>`;
 }
 
