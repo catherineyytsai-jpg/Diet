@@ -376,3 +376,10 @@
 .settings-summary dd {margin:0;text-align:right;font-weight:700}
 .journal-header h1,.modal-head h2,.section-title h2 {line-height:1.2}
 .meal-card,.summary-card,.advice-card,.calorie-trend {border-color:var(--line)}
+
+.settings-sheet .modal-head {align-items:center}
+.settings-sheet .modal-head h2 {flex:1}
+.modal.settings-sheet.sheet-continuation {animation:none}
+@media(max-width:720px) {
+  .modal.settings-sheet {height:auto;max-height:calc(100dvh - 64px);margin:0}
+}

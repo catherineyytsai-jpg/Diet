@@ -84,7 +84,7 @@ function alertBanner(){if(state.demo)return `<div class="banner banner-demo"><b>
 function topbar(){const names=orderedMembers();return `<div class="topbar"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate<span class="brand-sub">FOOD JOURNAL</span></span></div><div class="top-actions">${state.space?`<button class="btn btn-outline btn-small btn-hide-mobile" data-action="show-space">共用代碼</button>`:''}<button class="btn btn-outline btn-small install-trigger" data-action="show-install" aria-label="安裝到手機主畫面" title="加入手機主畫面">⌂ <span>加入手機</span></button><div class="avatar-pair">${names.map((m,i)=>`<span class="avatar" title="${escapeHtml(m.display_name)}">${escapeHtml((m.display_name||'?').slice(0,1))}</span>`).join('')}</div>${state.demo?'':`<button class="quiet" data-action="signout">登出</button>`}</div></div>`}
 function renderAuth(){app.innerHTML=`<div class="layout"><div class="auth-wrap"><div class="brand"><span class="brand-icon">◒</span><span>Daily Plate</span></div>${alertBanner()}<div class="auth-panel"><p class="eyebrow">SHARED FOOD JOURNAL</p><h1>${state.authMode==='login'?'歡迎回來':'建立你的帳號'}</h1><p>每天拍照記錄飲食，與另一個人共用完整熱量日記。</p><form id="auth-form"><div class="field"><label>電子郵件</label><input name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div><div class="field"><label>密碼</label><input name="password" type="password" minlength="6" required placeholder="至少 6 碼" autocomplete="${state.authMode==='login'?'current-password':'new-password'}"></div><button class="btn btn-primary fill" type="submit">${state.authMode==='login'?'登入':'註冊'}</button></form><div class="toggle-line">${state.authMode==='login'?'還沒有帳號？':'已經有帳號？'} <button class="quiet" data-action="toggle-auth">${state.authMode==='login'?'建立帳號':'返回登入'}</button></div></div><p style="font-size:12px;text-align:center;margin-top:21px">照片只對同一個共用空間內的成員開放。</p></div></div>`}
 function renderWorkspace(){app.innerHTML=`<div class="layout">${topbar()}<div class="workspace-panel">${alertBanner()}<p class="eyebrow">SET UP YOUR SHARED SPACE</p><h1>開始記錄每一餐。</h1><p>建立空間後就能自己記餐，也可分享邀請碼，讓另一人加入同一份飲食日記。</p><div class="workspace-options"><div class="workspace-box"><h2>建立個人空間</h2><p>給自己取個稱呼，就可以開始記餐。</p><form id="create-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="我" maxlength="24" required></div><div class="field"><label>空間名稱</label><input name="spaceName" value="我們的餐桌" maxlength="40" required></div><button class="btn btn-primary fill" type="submit">建立雙人空間</button></form></div><div class="workspace-box"><h2>加入已有空間</h2><p>請對方分享邀請碼，輸入後即可一起紀錄。</p><form id="join-space-form"><div class="field"><label>你的稱呼</label><input name="nickname" value="他" maxlength="24" required></div><div class="field"><label>8 碼邀請碼</label><input name="invite" class="code" maxlength="8" minlength="8" required placeholder="例如 A1B2C3D4" autocapitalize="characters"></div><button class="btn btn-outline fill" type="submit">加入空間</button></form></div></div></div></div>`}
-function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),base=n(member.daily_goal),activity=member.user_id===currentUserId()?readDayActivity():{},extra=n(activity.extraKcal),goal=base?base+extra:0,p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${member.user_id===currentUserId()?'summary-self':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span><button class="member-card-link" type="button" data-action="member-view" data-id="${escapeHtml(member.user_id)}" aria-label="查看 ${escapeHtml(member.display_name||'成員')} 的紀錄">${escapeHtml(member.display_name||'成員')}</button> ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`${extra?'今日調整後目標':'每日目標'} ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}${activity.steps||extra?`<p class="home-activity">${[activity.steps?`${whole(activity.steps)} 步`:'',extra?`額外運動 ${whole(extra)} kcal`:''].filter(Boolean).join(' · ')}</p>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
+function summaryCard(member,i){const t=personTotals(mealsOnDay(),member.user_id),base=n(member.daily_goal),activity=dayActivity(member),extra=n(activity.extraKcal),goal=base?base+extra:0,p=goal?Math.min(100,Math.round(t.kcal/goal*100)):0;return `<div class="summary-card ${member.user_id===currentUserId()?'summary-self':''}"><div class="card-top"><span class="person-dot ${i?'p1':''}">${escapeHtml((member.display_name||'?').slice(0,1))}</span><button class="member-card-link" type="button" data-action="member-view" data-id="${escapeHtml(member.user_id)}" aria-label="查看 ${escapeHtml(member.display_name||'成員')} 的紀錄">${escapeHtml(member.display_name||'成員')}</button> ${member.user_id===currentUserId()?`<button class="quiet" data-action="goal" data-user="${member.user_id}" style="margin-left:auto">設定目標</button>`:''}</div><div class="stat-line"><span class="stat-big">${whole(t.kcal)}</span><span class="unit">kcal 已攝取</span></div><p class="goal-meta">${goal?`${extra?'今日調整後目標':'每日目標'} ${whole(goal)} kcal・${t.kcal>goal?`超出 ${whole(t.kcal-goal)}`:`剩餘 ${whole(goal-t.kcal)}`} kcal`:'尚未設定每日熱量目標'}</p>${goal&&t.kcal>goal?`<p class="goal-warning">超標 ${whole(t.kcal-goal)} kcal</p>`:''}${goal?`<span class="daily-chart-track" aria-hidden="true"><span class="${t.kcal>goal?'over-goal':''}" style="width:${p}%"></span></span>`:''}${activity.steps||extra?`<p class="home-activity">${[activity.steps?`${whole(activity.steps)} 步`:'',extra?`額外運動 ${whole(extra)} kcal`:''].filter(Boolean).join(' · ')}</p>`:''}<div class="macro-line"><span>蛋白質 <b>${fixed(t.protein)}g</b></span><span>碳水 <b>${fixed(t.carbs)}g</b></span><span>脂肪 <b>${fixed(t.fat)}g</b></span></div></div>`}
 function mealPhotos(meal){
   return [meal.image_path,...(Array.isArray(meal.estimate_meta?.extraPhotos)?meal.estimate_meta.extraPhotos:[])].filter(Boolean);
 }
@@ -142,7 +142,15 @@ function renderDashboard(){
       <div class="meal-list">${meals.length?meals.map(mealCard).join(''):'<p class="compact-empty">這天還沒有餐點紀錄。</p>'}</div></section>
     </main>${mobileNav()}${state.modal?renderModal():''}`;
 }
-function render(){const previousModalScroll=document.querySelector('.modal')?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');if(updatedModal)updatedModal.scrollTop=previousModalScroll}
+function render(){const previousModal=document.querySelector('.modal');const previousModalScroll=previousModal?.scrollTop||0;document.body.classList.toggle('dialog-open',Boolean(state.modal));if(!state.demo&&!state.session){renderAuth();return}if(!state.demo&&!state.space){renderWorkspace();return}renderDashboard();const updatedModal=document.querySelector('.modal');
+ if(updatedModal&&state.settingsChild&&['profile','display-name','weekly-activity','goal','space','install'].includes(state.modal)){
+   updatedModal.classList.add('journal-sheet','settings-sheet');
+   updatedModal.removeAttribute('data-compact-modal');
+   updatedModal.querySelector('.modal-head')?.insertAdjacentHTML('afterbegin','<button type="button" class="x" data-action="back-settings" aria-label="返回設定">‹</button>');
+ }if(updatedModal){
+ if(previousModal?.getAttribute('aria-label')===updatedModal.getAttribute('aria-label'))updatedModal.scrollTop=previousModalScroll;
+ if(previousModal?.classList.contains('settings-sheet')&&updatedModal.classList.contains('settings-sheet'))updatedModal.classList.add('sheet-continuation');
+}}
 function makeMealDraft(meal){const editing=!!meal;return {id:meal?.id||null,day:meal?.day||state.date,meal_type:meal?.meal_type||mealTypeAt(new Date()),note:meal?.note||'',restaurant:meal?.restaurant||'',photos:meal?mealPhotos(meal):[],originalPhotos:meal?mealPhotos(meal):[],image_path:meal?.image_path||null,original_image_path:meal?.image_path||null,items:editing?structuredClone(meal.items||[]):[defaultItem()],originalMeta:meal?.estimate_meta,dailyAdvice:meal?.estimate_meta?.dailyAdvice||'',estimated:meal?.estimate_meta||null}}
 function openNewForm(meal){state.photoDrafts=[];state.currentForm=makeMealDraft(meal);state.modal='meal';render()}
 function formItem(i,item){const people=orderedMembers();return `<div class="editor-item" data-item="${i}"><div class="editor-top"><input aria-label="食物名稱" data-field="name" data-index="${i}" value="${escapeHtml(item.name)}" placeholder="食物名稱"><button class="quiet" data-action="remove-item" data-index="${i}">移除</button></div><div class="mini-grid">${[['kcal','熱量 kcal'],['protein_g','蛋白質 g'],['carbs_g','碳水 g'],['fat_g','脂肪 g']].map(([field,label])=>`<label>${label}<input type="number" min="0" step="0.1" data-field="${field}" data-index="${i}" value="${n(item[field])}"></label>`).join('')}</div><div class="split-grid">${people.map(p=>`<label>${people.length>1?`<strong class="portion-person">${escapeHtml(p.display_name)}</strong>`:''}吃了多少%<input type="number" inputmode="numeric" min="0" max="100" data-share-user="${p.user_id}" data-index="${i}" value="${Math.round(safePercent(item.shares?.[p.user_id]||0))}"></label>`).join('')}</div>${item.portion?`<div class="tiny">AI 推估份量：${escapeHtml(item.portion)}</div>`:''}<div class="tiny">食用百分比合計不可超過 100%；未分配的部分視為剩餘食物。</div></div>`}
@@ -243,6 +251,8 @@ async function saveGoal(form){
 }
 document.addEventListener('submit',async e=>{if(e.target.id==='weekly-activity-form'){e.preventDefault();await saveWeeklyActivity(e.target)}if(e.target.id==='advice-form'){e.preventDefault();await saveAdvice(e.target)}if(e.target.id==='display-name-form'){e.preventDefault();await saveDisplayName(e.target)}if(e.target.id==='goal-form'){e.preventDefault();await saveGoal(e.target)}if(e.target.id==='activity-form'){e.preventDefault();saveDayActivity(e.target)}if(e.target.id==='profile-form'){e.preventDefault();saveProfile(e.target)}if(e.target.id==='auth-form'){e.preventDefault();await authSubmit(e.target)}if(e.target.id==='create-space-form'){e.preventDefault();await spaceSubmit(e.target,true)}if(e.target.id==='join-space-form'){e.preventDefault();await spaceSubmit(e.target,false)}});
 document.addEventListener('click',async e=>{const el=e.target.closest('[data-action]');if(!el)return;const action=el.dataset.action;
+ if(action==='settings')state.settingsChild=false;
+ if(el.hasAttribute('data-settings-link'))state.settingsChild=true;
  if(action==='toggle-auth'){state.authMode=state.authMode==='login'?'signup':'login';render()}
  else if(action==='signout'){await client.auth.signOut();state.session=null;state.space=null;state.modal=null;state.page='home';state.memberView=null;render()}
  else if(action==='prev-day'||action==='next-day'){
@@ -292,6 +302,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
  else if(action==='native-install'&&deferredInstallPrompt){const install=deferredInstallPrompt;deferredInstallPrompt=null;install.prompt();await install.userChoice.catch(()=>{});state.modal=null;render()}
  else if(action==='meal-detail'){state.detailMeal=el.dataset.id;state.modal='meal-detail';render()}
  else if(action==='edit-meal'){const meal=state.meals.find(m=>m.id===el.dataset.id);if(meal)openNewForm(meal)}
+ else if(action==='back-settings'){state.modal='settings';render()}
  else if(action==='close-modal'){
    if(state.photoDrafts?.length>1&&!confirm('要關閉並放棄尚未儲存的餐點草稿嗎？'))return;
    const sheet=document.querySelector('.journal-sheet');
@@ -300,7 +311,7 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
      sheet.dataset.closing='true';
      await new Promise(resolve=>setTimeout(resolve,170));
    }
-   state.photoDrafts=[];state.modal=null;state.currentForm=null;render();
+   state.settingsChild=false;state.photoDrafts=[];state.modal=null;state.currentForm=null;render();
  }
  else if(action==='show-space'){state.modal='space';render()}
  else if(action==='copy-code'){try{await navigator.clipboard.writeText(state.space.invite_code);toast('邀請碼已複製')}catch{toast('無法自動複製，請手動選取邀請碼')}}
@@ -471,7 +482,7 @@ function settingsModal(){
   ];
   if(state.session)options.push(['signout','登出']);
   return journalModal('設定',`<div class="journal-settings-list">${options.map(([action,label,user,value])=>
-    `<button class="settings-row" data-action="${action}" ${user?`data-user="${user}"`:''}><span>${escapeHtml(label)}</span>${value?`<small>${escapeHtml(value)}</small>`:''}<span class="settings-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`);
+    `<button class="settings-row" data-settings-link data-action="${action}" ${user?`data-user="${user}"`:''}><span>${escapeHtml(label)}</span>${value?`<small>${escapeHtml(value)}</small>`:''}<span class="settings-chevron" aria-hidden="true">›</span></button>`).join('')}</div>`);
 }
 
 function profileModal(){
@@ -530,7 +541,7 @@ function historySeries(people,end,length){
 }
 function historyValueLabel(value,member,day,length){
   const base=n(member.daily_goal);
-  const goal=base+(member.user_id===currentUserId()?n(readDayActivity(day).extraKcal):0);
+  const goal=base+(dayActivity(member,day).extraKcal);
   return `${whole(value)} kcal${length===7&&base&&value>goal?` · 超標 ${whole(value-goal)} kcal`:''}`;
 }
 function historyBalance(member,start,end,baseline){
@@ -540,7 +551,7 @@ function historyBalance(member,start,end,baseline){
   const values=[];
   for(let day=start;day<=end;day=shiftDate(day,1)){
     const meals=state.meals.filter(meal=>meal.day===day&&meal.items?.some(item=>getShare(item,member.user_id)>0));
-    if(meals.length)values.push(expenditure+(own?n(readDayActivity(day).extraKcal):0)-personTotals(meals,member.user_id).kcal);
+    if(meals.length)values.push(expenditure+(dayActivity(member,day).extraKcal)-personTotals(meals,member.user_id).kcal);
   }
   return values.length?Math.round(values.reduce((sum,value)=>sum+value,0)/values.length):null;
 }
@@ -583,7 +594,7 @@ function dailyHistory(){
       const balance=historyBalance(member,day,day,baseline);
       const own=member.user_id===currentUserId();
       const base=(own?baseline:0)||n(member.baseline_kcal);
-      const extra=own?n(readDayActivity(day).extraKcal):0;
+      const extra=dayActivity(member,day).extraKcal;
       return `<div class="activity-history-member"><strong>${escapeHtml(member.display_name)}</strong>
         <div class="balance-values expenditure-values">
           <span>攝取<strong>${intake===null?'未記錄':whole(intake)+' kcal'}</strong></span>
@@ -636,9 +647,20 @@ function dailyHistory(){
 function activityKey(day=state.date){
   return `daily-plate-activity-${currentUserId()}-${day}`;
 }
-function readDayActivity(day){
-  try{return JSON.parse(localStorage.getItem(activityKey(day)))||{}}catch{return {}}
+function dayActivity(member,day=state.date){
+  const own=member?.user_id===currentUserId();
+  let saved={};
+  if(own){
+    try{saved=JSON.parse(localStorage.getItem(activityKey(day)))||{}}catch{}
+  }
+  const entries=[...(saved.entries??(saved.extraKcal?[{name:'額外運動',kcal:saved.extraKcal}]:[]))];
+  const name=member?scheduledActivity(member,day):'';
+  if(name&&!saved.scheduleReviewed&&!entries.some(entry=>entry.name===name)){
+    entries.push({name,minutes:60,kcal:name.includes('網球')?400:0,scheduled:true});
+  }
+  return {...saved,entries,extraKcal:entries.reduce((sum,entry)=>sum+n(entry.kcal),0)};
 }
+function readDayActivity(day){return dayActivity(currentMember(),day)}
 function saveDayActivity(form){
   const fields=new FormData(form);
   const names=fields.getAll('activityName'), minutes=fields.getAll('activityMinutes'), calories=fields.getAll('activityKcal');
@@ -657,10 +679,7 @@ function activityEntry(entry={}){
     <button type="button" class="quiet" data-action="remove-activity" aria-label="移除此運動">移除</button></div>`;
 }
 function activityForm(){
-  const {steps,extraKcal,entries,scheduleReviewed}=readDayActivity();
-  const activities=[...(entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]))];
-  const scheduled=currentMember()?scheduledActivity(currentMember(),state.date):'';
-  if(scheduled&&!scheduleReviewed&&!activities.some(entry=>entry.name===scheduled))activities.push({name:scheduled,minutes:60});
+  const {steps,entries:activities}=readDayActivity();
   return `<form id="activity-form" class="summary-card activity-card">
     <h3>當日活動</h3>
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
@@ -726,11 +745,6 @@ function scheduledActivity(member,day){
   const schedule=weeklyActivity(member);
   return day>='2026-11-08'&&schedule.days.includes(new Date(year,month-1,date,12).getDay())?schedule.name:'';
 }
-function tennisNote(member,day,activity){
-  const name=scheduledActivity(member,day);
-  return name&&!activity?.scheduleReviewed&&!activity?.entries?.some(entry=>entry.name===name)
-    ? `<p class="tennis-note">${escapeHtml(name)} · 60 分鐘（預設）</p>`:'';
-}
 function weeklyActivityModal(){
   const schedule=weeklyActivity(currentMember());
   return journalModal('固定運動日',`<form id="weekly-activity-form">
@@ -758,15 +772,14 @@ async function saveWeeklyActivity(form){
 function expenditureCard(member){
   const own=member.user_id===currentUserId();
   const baseline=(own?dailyExpenditure(readProfile()):0)||n(member.baseline_kcal);
-  const extra=own?n(readDayActivity().extraKcal):null;
+  const extra=dayActivity(member).extraKcal;
   return `<section class="summary-card day-balance"><h3>${escapeHtml(member.display_name)} <small>當日熱量消耗</small></h3>
-    ${tennisNote(member,state.date,own?readDayActivity():null)}
     <div class="balance-values expenditure-values">
       <span>平常估計消耗 <strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
-      <span>額外活動消耗 <strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
-      <span>估計總消耗 <strong>${baseline?whole(baseline+(extra??0))+' kcal':'—'}</strong></span>
+      <span>額外活動消耗 <strong>${whole(extra)+' kcal'}</strong></span>
+      <span>估計總消耗 <strong>${baseline?whole(baseline+extra)+' kcal':'—'}</strong></span>
     </div>
-    ${own?'':'<p class="tiny">夥伴的額外活動未同步，總消耗僅列平常估算。</p>'}
+    ${own?'':'<p class="tiny">夥伴的總消耗包含固定運動估算，手動調整保存在對方的瀏覽器。</p>'}
     ${baseline||!own?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
   </section>`;
 }
@@ -806,30 +819,32 @@ function monthCalendar(){
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
   const activity=readDayActivity();
-  const scheduled=currentMember()?tennisNote(currentMember(),end,activity):'';
-  const summary=activity.entries?.map(entry=>`<li>${escapeHtml(entry.name)}${entry.minutes?` · ${whole(entry.minutes)} 分鐘`:''}${entry.kcal?` · ${whole(entry.kcal)} kcal`:''}</li>`).join('')||'';
+  const activityList=entries=>entries.map(entry=>`<li>${escapeHtml(entry.name)}${entry.minutes?` · ${whole(entry.minutes)} 分鐘`:''}${entry.kcal?` · ${whole(entry.kcal)} kcal`:''}${entry.scheduled?'（預估）':''}</li>`).join('');
+  const summary=activityList(activity.entries);
   const ownActivity=state.activityEditDay===end?activityForm():`<section class="summary-card day-balance"><h3>當日活動</h3>
     ${activity.steps?`<p>${whole(activity.steps)} 步</p>`:''}${summary?`<ul>${summary}</ul>`:''}
-    ${scheduled}${!activity.steps&&!summary&&!scheduled?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal||scheduled?'修改活動':'新增活動'}</button></section>`;
+    ${!activity.steps&&!summary?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal?'修改活動':'新增活動'}</button></section>`;
   const days=Array.from({length:count},(_,i)=>shiftDate(end,-i));
   const profileEstimate=dailyExpenditure(readProfile());
   const history=`<div class="trend-card activity-history"><h3>近 ${count} 天消耗</h3>
-    <p class="tiny">夥伴的額外活動未同步時，總消耗以平常估算顯示。</p>
+    <p class="tiny">夥伴的總消耗包含固定運動估算。</p>
     ${days.map(day=>`<section><h4>${dayLabel(day)}</h4>${people.map(member=>{
       const self=member.user_id===own;
       const baseline=(self?profileEstimate:0)||n(member.baseline_kcal);
-      const entry=self?readDayActivity(day):null;
-      const extra=entry?n(entry.extraKcal):null;
+      const extra=dayActivity(member,day).extraKcal;
       return `<div class="activity-history-member"><strong>${escapeHtml(member.display_name)}</strong>
-      ${tennisNote(member,day,entry)}
       <div class="balance-values expenditure-values">
         <span>平常估計<strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
-        <span>額外活動<strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
-        <span>總消耗<strong>${baseline?whole(baseline+(extra??0))+' kcal':'—'}</strong></span>
+        <span>額外活動<strong>${whole(extra)+' kcal'}</strong></span>
+        <span>總消耗<strong>${baseline?whole(baseline+extra)+' kcal':'—'}</strong></span>
       </div></div>`;
     }).join('')}</section>`).join('')}</div>`;
   return people.map(expenditureCard).join('')+
-    (people.some(person=>person.user_id===own)?ownActivity:'')+sectionRange('activity')+history;
+    people.map(person=>{
+      if(person.user_id===own)return ownActivity;
+      const summary=activityList(dayActivity(person,end).entries);
+      return summary?`<section class="summary-card day-balance"><h3>${escapeHtml(person.display_name)} <small>當日活動</small></h3><ul>${summary}</ul></section>`:'';
+    }).join('')+sectionRange('activity')+history;
 }
 function adviceRecords(){
   const count=state.adviceRange||7,start=shiftDate(state.date,1-count);
