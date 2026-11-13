@@ -308,3 +308,8 @@
 .weekly-days {display:flex;flex-wrap:wrap;gap:8px 12px;border:1px solid #dce7df;border-radius:10px;margin:12px 0;padding:10px}
 .weekly-days label {display:flex;align-items:center;gap:5px;min-height:36px}
 .weekly-days input {width:auto;min-height:0;accent-color:#28765c}
+
+.calorie-trend .trend-kpi,.calorie-trend .period-balance > div p {background:none;border-radius:0}
+.calorie-trend .period-balance {border:0;border-radius:0;border-block:1px solid #dce7df;background:none;padding-inline:0}
+.calorie-trend .trend-person {border:0;border-radius:0;padding-inline:0;border-top:1px solid #e6ece7}
+.calorie-trend .trend-kpi + .trend-kpi,.calorie-trend .period-balance p + p {border-left:1px solid #dce7df}

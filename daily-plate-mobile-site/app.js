@@ -500,7 +500,7 @@ async function saveProfile(form){
 }
 function historySeries(people,end,length){
   const days=Array.from({length},(_,index)=>shiftDate(end,index-length+1));
-  const size=length===7||(length===30&&state.historyGrouping!=='week')?1:7;
+  const size=length===7||(length>7&&state.historyGrouping!=='week')?1:7;
   const buckets=[];
   for(let to=days.length;to>0;to-=size)buckets.unshift(days.slice(Math.max(0,to-size),to));
   return buckets.map(days=>({
@@ -562,11 +562,11 @@ function dailyHistory(){
     <div>${people.map((member,j)=>`<p><span>${escapeHtml(member.display_name)}</span><strong class="${periodNetBalance(member,end,length,baseline)<0?'trend-surplus':periodNetBalance(member,end,length,baseline)>0?'trend-deficit':''}">${balances.some(row=>row[j]!==null)?balanceLabel(periodNetBalance(member,end,length,baseline)):'—'}</strong></p>`).join('')}</div>
     </section>`;
   const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
-  return `<section class="trend-card" aria-label="熱量趨勢">
+  return `<section class="trend-card calorie-trend" aria-label="熱量趨勢">
     <div class="trend-head"><h3>熱量趨勢</h3><div class="trend-ranges" role="group" aria-label="趨勢區間">
     ${[7,30,90].map(days=>`<button type="button" aria-pressed="${length===days}" data-action="history-range" data-range="${days}">${days} 天</button>`).join('')}</div></div>
     <div class="trend-kpis" aria-label="${dateLabel(state.date)} 攝取與收支">${summary}</div>${periodCard}
-    ${styles}${length===30?`<div class="trend-ranges">${[['day','每日'],['week','每週平均']].map(([key,label])=>`<button data-action="history-grouping" data-grouping="${key}" aria-pressed="${(state.historyGrouping||'day')===key}">${label}</button>`).join('')}</div>`:''}<p class="tiny">${series.length===length?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
+    ${styles}${length>7?`<div class="trend-ranges">${[['day','每日'],['week','每週平均']].map(([key,label])=>`<button data-action="history-grouping" data-grouping="${key}" aria-pressed="${(state.historyGrouping||'day')===key}">${label}</button>`).join('')}</div>`:''}<p class="tiny">${series.length===length?'每日攝取（kcal）':'每週有紀錄日的平均攝取（kcal）'}</p>
     ${horizontal?`<div class="trend-table"><div class="trend-table-head"><span>日期／成員</span><span>攝取</span><span>估計收支</span></div>
     ${dailyRows.map(row=>row.values.map((value,j)=>value===null?'':`<div class="trend-table-row">
       <span>${dateLabel(row.start)}${row.start!==row.end?'–'+dateLabel(row.end):''}<small>${escapeHtml(people[j].display_name)}</small></span>
@@ -614,7 +614,7 @@ function saveDayActivity(form){
   const entries=names.map((name,i)=>({name:String(name).trim(),minutes:n(minutes[i]),kcal:n(calories[i])}))
     .filter(entry=>entry.name||entry.minutes||entry.kcal);
   if(entries.some(entry=>!entry.name))return toast('請填寫運動名稱');
-  const activity={steps:n(fields.get('steps')),entries,extraKcal:entries.reduce((sum,entry)=>sum+entry.kcal,0)};
+  const activity={scheduleReviewed:true,steps:n(fields.get('steps')),entries,extraKcal:entries.reduce((sum,entry)=>sum+entry.kcal,0)};
   try{localStorage.setItem(activityKey(),JSON.stringify(activity));state.activityEditDay=null;render();toast('活動紀錄已儲存')}
   catch{toast('瀏覽器無法儲存活動紀錄')}
 }
@@ -626,10 +626,10 @@ function activityEntry(entry={}){
     <button type="button" class="quiet" data-action="remove-activity" aria-label="移除此運動">移除</button></div>`;
 }
 function activityForm(){
-  const {steps,extraKcal,entries}=readDayActivity();
+  const {steps,extraKcal,entries,scheduleReviewed}=readDayActivity();
   const activities=[...(entries|| (extraKcal?[{name:'額外運動',kcal:extraKcal}]:[]))];
   const scheduled=currentMember()?scheduledActivity(currentMember(),state.date):'';
-  if(scheduled&&!activities.some(entry=>entry.name===scheduled))activities.push({name:scheduled,minutes:60});
+  if(scheduled&&!scheduleReviewed&&!activities.some(entry=>entry.name===scheduled))activities.push({name:scheduled,minutes:60});
   return `<form id="activity-form" class="summary-card activity-card">
     <h3>當日活動</h3>
     <label class="field">步數<input name="steps" type="number" min="0" step="1" value="${steps??''}" inputmode="numeric"></label>
@@ -697,7 +697,7 @@ function scheduledActivity(member,day){
 }
 function tennisNote(member,day,activity){
   const name=scheduledActivity(member,day);
-  return name&&!activity?.entries?.some(entry=>entry.name===name)
+  return name&&!activity?.scheduleReviewed&&!activity?.entries?.some(entry=>entry.name===name)
     ? `<p class="tennis-note">${escapeHtml(name)} · 60 分鐘（預設）</p>`:'';
 }
 function weeklyActivityModal(){
@@ -759,7 +759,11 @@ function monthCalendar(){
     ${'<span></span>'.repeat(first.getDay())}
     ${Array.from({length:count},(_,i)=>{
       const date=new Date(year,month-1,i+1,12), day=dateKey(date);
-      const scheduled=orderedMembers().map(person=>{const name=scheduledActivity(person,day);return name?person.display_name+' '+name+'日':''}).filter(Boolean);
+      const scheduled=orderedMembers().map(person=>{
+        const name=scheduledActivity(person,day);
+        const activity=person.user_id===currentUserId()?readDayActivity(day):null;
+        return name&&(!activity?.scheduleReviewed||activity.entries?.some(entry=>entry.name===name))?person.display_name+' '+name+'日':'';
+      }).filter(Boolean);
       const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
       const ringColor=value=>value==null?'transparent':value<0?'#f4c9bd':value===0?'#e0e6e2':'#b9deca';
       const left=ringColor(values[0]), right=values.length>1?ringColor(values[1]):left;
@@ -771,10 +775,11 @@ function monthCalendar(){
 function activityRecords(){
   const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
   const activity=readDayActivity();
+  const scheduled=currentMember()?tennisNote(currentMember(),end,activity):'';
   const summary=activity.entries?.map(entry=>`<li>${escapeHtml(entry.name)}${entry.minutes?` · ${whole(entry.minutes)} 分鐘`:''}${entry.kcal?` · ${whole(entry.kcal)} kcal`:''}</li>`).join('')||'';
   const ownActivity=state.activityEditDay===end?activityForm():`<section class="summary-card day-balance"><h3>當日活動</h3>
     ${activity.steps?`<p>${whole(activity.steps)} 步</p>`:''}${summary?`<ul>${summary}</ul>`:''}
-    ${!activity.steps&&!summary?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal?'修改活動':'新增活動'}</button></section>`;
+    ${scheduled}${!activity.steps&&!summary&&!scheduled?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal||scheduled?'修改活動':'新增活動'}</button></section>`;
   const days=Array.from({length:count},(_,i)=>shiftDate(end,-i));
   const profileEstimate=dailyExpenditure(readProfile());
   const history=`<div class="trend-card activity-history"><h3>近 ${count} 天消耗</h3>
