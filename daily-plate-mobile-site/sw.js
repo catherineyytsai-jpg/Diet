@@ -1,6 +1,6 @@
 /* Cache only public app shell. Never cache user photos, API responses or auth data. */
-const CACHE_NAME='daily-plate-shell-v37';
-const SHELL=['./offline.html','./styles.css','./app.js','./icons/icon-v2-192.png','./icons/icon-v2-512.png','./icons/apple-touch-icon-v2.png','./manifest.webmanifest'];
+const CACHE_NAME='daily-plate-shell-v38';
+const SHELL=['./offline.html','./styles.css','./app.js','./icons/icon-v3-192.png','./icons/icon-v3-512.png','./icons/apple-touch-icon-v3.png','./manifest.webmanifest'];
 self.addEventListener('install',event=>{
  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));
 });
