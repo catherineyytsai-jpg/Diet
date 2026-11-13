@@ -114,12 +114,12 @@ function mealCard(meal){
   return `<article class="meal-card">${mealPhoto(meal)}<div class="meal-content" data-action="meal-detail" data-id="${meal.id}"><div class="meal-overline">${mealEmoji(meal.meal_type)} ${mealNames(meal.meal_type)} · ${meal.items?.length||0} 項</div><h3><button class="quiet meal-title" data-action="meal-detail" data-id="${meal.id}">${escapeHtml(title)}</button></h3>${meal.note?`<p class="note">${escapeHtml(meal.note)}</p>`:''}<div class="meal-kcals">${viewedMembers().map(member=>`<span>${escapeHtml(member.display_name)} <b>${whole(personTotals([meal],member.user_id).kcal)} kcal</b></span>`).join('')}</div></div><button class="meal-action" data-action="edit-meal" data-id="${meal.id}" aria-label="修改餐點">✎</button></article>`;
 }
 function mobileNav(){
- const links=[['records','記錄','≡'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙']];
+ const links=[['records','記錄','≡'],['home','首頁','⌂'],['add-meal','上傳','＋'],['settings','設定','⚙︎']];
  const active=state.page==='records'?'records':'home';
  return `<nav class="mobile-nav journal-nav" aria-label="日記導覽">${links.map(([action,label,icon])=>`<button class="nav-button ${action===active?'active':''}" data-action="${action}"><span class="nav-symbol" aria-hidden="true">${icon}</span><span>${label}</span></button>`).join('')}</nav>`;
 }
 function datedHeader(title,id,brand=false){
-  return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>
+  return `<header class="journal-header"><h1 class="${brand?'journal-wordmark':''}">${title}</h1>${currentMember()?`<span class="account-circle" aria-label="登入帳號 ${escapeHtml(currentMember().display_name)}" title="${escapeHtml(currentMember().display_name)}">${escapeHtml(currentMember().display_name.slice(0,1))}</span>`: ''}
     <div class="journal-date-tools"><div class="date-stepper" role="group" aria-label="日期切換">
     <button type="button" data-action="prev-day" aria-label="前一天">‹</button>
     <label class="date-pill"><span aria-hidden="true">${state.date.replaceAll('-','/')}</span><input id="${id}" aria-label="查看日期" type="date" value="${state.date}"></label>
@@ -132,7 +132,7 @@ function renderDashboard(){
   app.innerHTML=`<main class="layout compact-dashboard">
     ${datedHeader('Daily Plate','date-control',true)}
     ${state.demo?'<p class="tiny">預覽模式 · 資料儲存在此瀏覽器</p>':state.notice?alertBanner():''}
-    ${memberPicker()}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
+    ${memberPicker()}${monthCalendar()}<section aria-label="每日攝取"><div class="section-title"><h2>每日攝取</h2></div>
       <div class="summary-grid">${viewedMembers().map(summaryCard).join('')}</div></section>
     <section id="meal-section"><div class="section-title"><h2>餐點紀錄</h2><small>${meals.length} 筆</small></div>
       <div class="meal-list">${meals.length?meals.map(mealCard).join(''):'<p class="compact-empty">這天還沒有餐點紀錄。</p>'}</div></section>
@@ -158,7 +158,7 @@ if(state.modal==='display-name')return displayNameModal();if(state.modal==='goal
  if(state.modal==='space'){return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal settings-panel"><div class="modal-head"><div><p class="eyebrow">SHARED WORKSPACE</p><h2>雙人空間設定</h2></div><button class="x" data-action="close-modal">×</button></div><p>把下方邀請碼傳給另一位，他註冊並加入後就能共同使用。</p><div class="split-preview" style="justify-content:space-between"><span class="code">${escapeHtml(state.space?.invite_code||'')}</span><button class="btn btn-outline btn-small" data-action="copy-code">複製邀請碼</button></div><p class="tiny">邀請碼請只分享給你信任的人。每個空間最多兩位成員。</p><div class="section-title"><h3>空間成員</h3></div>${state.members.map(m=>`<div style="display:flex;justify-content:space-between;margin:7px 0"><span>${escapeHtml(m.display_name)}</span><span class="tiny">${m.user_id===currentUserId()?'你':'另一位成員'}</span></div>`).join('')}</div></div>`}
  if(state.modal!=='meal')return '';
  const f=state.currentForm;const sums=orderedMembers().map(m=>({member:m,total:personTotals([{items:f.items}],m.user_id)}));
- return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal meal-editor journal-sheet" role="dialog" aria-modal="true" aria-label="餐點編輯"><div class="meal-editor-body"><div class="modal-head"><div><p class="eyebrow">${f.id?'EDIT YOUR MEAL':'ADD A NEW MEAL'}</p><h2>${f.id?'修改這餐':'記錄一餐'}</h2></div><button class="x" data-action="close-modal">×</button></div><div class="field"><label>餐點照片</label>${draftNavigation(f)}<div class="photo-box">${f.photos.length?`<div class="meal-photo-grid">${f.photos.map((path,i)=>`<div>${photoSource(path)?`<img class="upload-preview" src="${escapeHtml(photoSource(path))}" alt="餐點照片 ${i+1}">`:''}<button class="quiet" data-action="remove-photo" data-index="${i}">移除照片 ${i+1}</button></div>`).join('')}</div>`:'<p>每餐最多 6 張。選取不同時間的照片可拆成多餐。</p>'}<div class="photo-buttons"><label class="photo-option photo-camera"><span aria-hidden="true">◉</span><span>開啟相機</span><input id="photo-camera" type="file" accept="image/*" capture="environment"></label><label class="photo-option photo-gallery"><span aria-hidden="true">▣</span><span>從相簿選擇</span><input id="photo-gallery" type="file" multiple accept="image/*"></label></div></div></div><div class="field"><label>補充說明</label><input id="form-note" maxlength="500" value="${escapeHtml(f.note)}" placeholder="例如：飯只吃一半、飲料有糖"></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-soft" data-action="analyze" ${!f.photos.length?'disabled':''}>分析餐點</button>${f.estimated?.min_kcal!=null?`<span class="estimate-pill">推估範圍 ${whole(f.estimated.min_kcal)}–${whole(f.estimated.max_kcal)} kcal</span>`:''}</div>${f.estimated?.assumption?`<p style="font-size:12px;margin:8px 0">估算假設：${escapeHtml(f.estimated.assumption)}</p>`:''}<div class="form-grid"><div class="field"><label>用餐日期</label><input id="form-date" type="date" value="${f.day}"></div><div class="field"><label>餐別</label><select id="form-type">${['breakfast','lunch','dinner','snack'].map(t=>`<option value="${t}" ${t===f.meal_type?'selected':''}>${mealNames(t)}</option>`).join('')}</select></div></div><div class="form-grid"><div class="field"><label>用餐地點（選填）</label><input id="form-restaurant" maxlength="100" value="${escapeHtml(f.restaurant)}" placeholder="餐廳、家裡或地址"><button class="btn btn-outline btn-small" data-action="locate">使用目前位置</button></div></div><hr class="divider"><div class="section-title" style="margin-top:0"><h3>食物與熱量明細</h3><button class="btn btn-outline btn-small" data-action="add-item">＋ 新增一項</button></div><p class="tiny" style="margin-top:-8px">每一項食物的總熱量先填在左邊，再分配各自實際吃掉的百分比。</p>${f.items.map((item,i)=>formItem(i,item)).join('')||'<p>請新增至少一項食物。</p>'}<div class="split-preview">${sums.map(({member,total})=>`<span>${escapeHtml(member.display_name)}：${whole(total.kcal)} kcal</span>`).join('')}</div></div><div class="modal-actions">${f.id?`<button class="btn btn-danger" data-action="delete-meal">刪除紀錄</button>`:'<span></span>'}<div style="display:flex;gap:8px"><button class="btn btn-outline" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="save-meal">儲存這一餐</button></div></div></div></div>`}
+ return `<div class="modal-backdrop" id="modal-backdrop"><div class="modal meal-editor journal-sheet" role="dialog" aria-modal="true" aria-label="餐點編輯"><div class="meal-editor-body"><div class="modal-head"><div><p class="eyebrow">${f.id?'EDIT YOUR MEAL':'ADD A NEW MEAL'}</p><h2>${f.id?'修改這餐':'記錄一餐'}</h2></div><button class="x" data-action="close-modal">×</button></div><div class="field"><label>餐點照片</label>${draftNavigation(f)}<div class="photo-box">${f.photos.length?`<div class="meal-photo-grid">${f.photos.map((path,i)=>`<div>${photoSource(path)?`<img class="upload-preview" src="${escapeHtml(photoSource(path))}" alt="餐點照片 ${i+1}">`:''}<button class="quiet" data-action="remove-photo" data-index="${i}">移除照片 ${i+1}</button></div>`).join('')}</div>`:'<p>每餐最多 6 張。選取不同時間的照片可拆成多餐。</p>'}<div class="photo-buttons"><label class="photo-option photo-camera"><span aria-hidden="true">◉</span><span>開啟相機</span><input id="photo-camera" type="file" accept="image/*" capture="environment"></label><label class="photo-option photo-gallery"><span aria-hidden="true">▣</span><span>從相簿選擇</span><input id="photo-gallery" type="file" multiple accept="image/*"></label></div></div></div><div class="field"><label>補充說明</label><input id="form-note" maxlength="500" value="${escapeHtml(f.note)}" placeholder="例如：飯只吃一半、飲料有糖"></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-soft" data-action="analyze" ${!f.photos.length?'disabled':''}>分析餐點</button>${f.estimated?.min_kcal!=null?`<span class="estimate-pill">推估範圍 ${whole(f.estimated.min_kcal)}–${whole(f.estimated.max_kcal)} kcal</span>`:''}</div>${f.estimated?.assumption?`<p style="font-size:12px;margin:8px 0">估算假設：${escapeHtml(f.estimated.assumption)}</p>`:''}<div class="form-grid"><div class="field"><label>用餐日期</label><input id="form-date" type="date" value="${f.day}"></div><div class="field"><label>餐別</label><select id="form-type">${['breakfast','lunch','dinner','snack'].map(t=>`<option value="${t}" ${t===f.meal_type?'selected':''}>${mealNames(t)}</option>`).join('')}</select></div></div><div class="form-grid"><div class="field"><label>用餐地點（選填）</label><input id="form-restaurant" maxlength="100" value="${escapeHtml(f.restaurant)}" placeholder="餐廳、家裡或地址"><button class="btn btn-outline btn-small location-button" data-action="locate">使用目前位置</button></div></div><hr class="divider"><div class="section-title" style="margin-top:0"><h3>食物與熱量明細</h3><button class="btn btn-outline btn-small" data-action="add-item">＋ 新增一項</button></div><p class="tiny" style="margin-top:-8px">每一項食物的總熱量先填在左邊，再分配各自實際吃掉的百分比。</p>${f.items.map((item,i)=>formItem(i,item)).join('')||'<p>請新增至少一項食物。</p>'}<div class="split-preview">${sums.map(({member,total})=>`<span>${escapeHtml(member.display_name)}：${whole(total.kcal)} kcal</span>`).join('')}</div></div><div class="modal-actions">${f.id?`<button class="btn btn-danger" data-action="delete-meal">刪除紀錄</button>`:'<span></span>'}<div style="display:flex;gap:8px"><button class="btn btn-outline" data-action="close-modal">取消</button><button class="btn btn-primary" data-action="save-meal">儲存這一餐</button></div></div></div></div>`}
 function collectFormBasic(){const f=state.currentForm;if(!f)return;f.day=$('form-date')?.value||f.day;f.meal_type=$('form-type')?.value||f.meal_type;f.restaurant=$('form-restaurant')?.value||'';f.note=$('form-note')?.value||''}
 async function photoToDataUrl(file){if(!file.type.startsWith('image/'))throw new Error('請選擇圖片檔案');if(file.size>20*1024*1024)throw new Error('原始照片不可超過 20MB');
  const objectUrl=URL.createObjectURL(file);const img=new Image();try{img.src=objectUrl;await img.decode();}catch{URL.revokeObjectURL(objectUrl);throw new Error('無法讀取照片，請改用 JPG、PNG 或 WebP 格式。')}
@@ -263,6 +263,14 @@ document.addEventListener('click',async e=>{const el=e.target.closest('[data-act
    if(list.children.length<12){list.insertAdjacentHTML('beforeend',activityEntry());list.lastElementChild.querySelector('input').focus()}
  }
  else if(action==='remove-activity')el.closest('.activity-entry').remove()
+ else if(action==='section-range'){state[el.dataset.section+'Range']=Number(el.dataset.range);render()}
+ else if(action==='edit-activity'){state.activityEditDay=state.date;render()}
+ else if(action==='cancel-activity'){state.activityEditDay=null;render()}
+ else if(action==='calendar-day'){state.historyEnd=el.dataset.day;await changeDay(el.dataset.day)}
+ else if(action==='calendar-month'){
+   const [year,month]=state.date.split('-').map(Number);
+   await changeDay(dateKey(new Date(year,month-1+Number(el.dataset.offset),1,12)));
+ }
  else if(action==='history-style'){state.historyStyle=el.dataset.style;render()}
  else if(action==='history-range'){state.historyRange=Number(el.dataset.range);render()}
  else if(action==='history-day')await changeDay(el.dataset.day);
@@ -539,9 +547,15 @@ function dailyHistory(){
   const summary=people.map((member,j)=>{
     const value=historySeries([member],state.date,7).at(-1).values[0];
     const balance=historyBalance(member,state.date,state.date,baseline);
+    const expenditure=value!==null&&balance!==null?value+balance:null;
+    const cumulative=balances.reduce((total,row)=>total+(row[j]??0),0);
+    const hasBalance=balances.some(row=>row[j]!==null);
+    const periodBalance=length===7?cumulative:periodNetBalance(member,end,length,baseline);
     return `<div class="trend-kpi"><strong style="color:${palette[j]}">${escapeHtml(member.display_name)}</strong>
       <span>攝取 <b>${value===null?'未記錄':whole(value)+' kcal'}</b></span>
-      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span></div>`;
+      <span>估計消耗 <b>${expenditure===null?'—':whole(expenditure)+' kcal'}</b></span>
+      <span class="${balance<0?'trend-surplus':''}">${balance===null?'收支待估':balanceLabel(balance)}</span>
+      <span>${length} 天累積 <b>${hasBalance?balanceLabel(periodBalance):'—'}</b></span></div>`;
   }).join('');
   const dailyRows=series.map((row,i)=>({...row,balances:balances[i]})).filter(row=>row.values.some(value=>value!==null)).reverse();
   return `<section class="trend-card" aria-label="熱量趨勢">
@@ -597,7 +611,7 @@ function saveDayActivity(form){
     .filter(entry=>entry.name||entry.minutes||entry.kcal);
   if(entries.some(entry=>!entry.name))return toast('請填寫運動名稱');
   const activity={steps:n(fields.get('steps')),entries,extraKcal:entries.reduce((sum,entry)=>sum+entry.kcal,0)};
-  try{localStorage.setItem(activityKey(),JSON.stringify(activity));render();toast('活動紀錄已儲存')}
+  try{localStorage.setItem(activityKey(),JSON.stringify(activity));state.activityEditDay=null;render();toast('活動紀錄已儲存')}
   catch{toast('瀏覽器無法儲存活動紀錄')}
 }
 function activityEntry(entry={}){
@@ -616,7 +630,7 @@ function activityForm(){
     <div class="activity-entries">${activities.map(activityEntry).join('')}</div>
     <button type="button" class="btn btn-outline btn-small" data-action="add-activity">＋ 新增運動</button>
     <p class="tiny">分鐘與額外熱量可留空。只把平常活動量以外的消耗加到當日目標。資料存於此瀏覽器。</p>
-    <button class="btn btn-primary btn-small">儲存活動</button></form>`;
+    <button class="btn btn-primary btn-small">儲存活動</button> <button type="button" class="btn btn-outline btn-small" data-action="cancel-activity">取消</button></form>`;
 }
 
 function adviceMeal(){
@@ -629,12 +643,12 @@ function advicePanel(){
   const advice=meal.estimate_meta?.dailyAdvice||'';
   const plans=meal.estimate_meta?.mealPlans||{};
   const fields=[['next','下一餐'],['breakfast','明天早餐'],['lunch','明天午餐'],['dinner','明天晚餐']];
-  const planCards=orderedMembers().map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
+  const planCards=(state.adviceEditDay===state.date?orderedMembers():viewedMembers()).map(person=>`<section class="advice-plan"><h4>${escapeHtml(person.display_name)}</h4>${fields.map(([key,label])=>{
     const value=plans[person.user_id]?.[key]||'';
     return state.adviceEditDay===state.date?`<label>${label}<input name="plan:${person.user_id}:${key}" maxlength="240" value="${escapeHtml(value)}"></label>`:`<p><strong>${label}</strong>　${escapeHtml(value||'待補上')}</p>`;
   }).join('')}</section>`).join('');
   return `<section class="summary-card advice-card"><h3>當日飲食建議</h3>
-    ${advice?`<p class="advice-text">${escapeHtml(advice)}</p>`:'<p class="tiny">這天還沒有建議。</p>'}
+    
     ${state.adviceEditDay===state.date?`<form id="advice-form">
       <label class="field" for="advice-text">${advice?'修改建議':'新增建議'}</label>
       <textarea id="advice-text" name="advice" rows="3" maxlength="1800">${escapeHtml(advice)}</textarea>
@@ -666,7 +680,7 @@ function expenditureCard(member){
   const baseline=(own?dailyExpenditure(readProfile()):0)||n(member.baseline_kcal);
   const extra=own?n(readDayActivity().extraKcal):null;
   return `<section class="summary-card day-balance"><h3>當日熱量消耗</h3>
-    <p class="tiny">${dayLabel(state.date)} · ${escapeHtml(member.display_name)}</p>
+    <p class="tiny">${escapeHtml(member.display_name)}</p>
     <div class="balance-values expenditure-values">
       <span>平常估計消耗 <strong>${baseline?whole(baseline)+' kcal':'—'}</strong></span>
       <span>額外活動消耗 <strong>${extra===null?'未同步':whole(extra)+' kcal'}</strong></span>
@@ -676,16 +690,62 @@ function expenditureCard(member){
     ${baseline||!own?'':'<button class="btn btn-outline btn-small" data-action="profile">設定個人資料</button>'}
   </section>`;
 }
+function periodNetBalance(member,end,length,baseline){
+  return Array.from({length},(_,i)=>shiftDate(end,-i)).reduce((total,day)=>total+(historyBalance(member,day,day,baseline)??0),0);
+}
+function sectionRange(section){
+  return `<div class="trend-ranges" role="group" aria-label="查看區間">${[7,30,90].map(days=>
+    `<button type="button" data-action="section-range" data-section="${section}" data-range="${days}" aria-pressed="${(state[section+'Range']||7)===days}">${days} 天</button>`).join('')}</div>`;
+}
+function monthCalendar(){
+  const [year,month]=state.date.split('-').map(Number);
+  const first=new Date(year,month-1,1,12), today=dateKey(new Date()), people=viewedMembers();
+  const baseline=dailyExpenditure(readProfile());
+  const count=new Date(year,month,0,12).getDate();
+  return `<section class="trend-card journal-calendar"><div class="trend-head">
+    <button class="btn btn-outline btn-small" data-action="calendar-month" data-offset="-1" aria-label="上個月">‹</button>
+    <h3>${year} 年 ${month} 月</h3>
+    <button class="btn btn-outline btn-small" data-action="calendar-month" data-offset="1" aria-label="下個月">›</button></div>
+    <div class="calendar-grid">${[...'日一二三四五六'].map(day=>`<span>${day}</span>`).join('')}
+    ${'<span></span>'.repeat(first.getDay())}
+    ${Array.from({length:count},(_,i)=>{
+      const date=new Date(year,month-1,i+1,12), day=dateKey(date);
+      const tennis=day>=today&&date.getDay()===0&&people.some(person=>person.display_name.toLowerCase()==='jay');
+      const values=day<=today?people.map(person=>historyBalance(person,day,day,baseline)):[];
+      return `<button data-action="calendar-day" data-day="${day}" aria-pressed="${day===state.date}" aria-label="${day}${tennis?' Jay 網球日':''}${values.map((v,j)=>v===null?'':` ${escapeHtml(people[j].display_name)} ${balanceLabel(v)}`).join('')}">
+        <span class="${tennis?'tennis-day':''}">${i+1}</span><span class="calendar-markers">${values.map(v=>v===null?'':`<i class="${v<0?'surplus':v===0?'even':'deficit'}"></i>`).join('')}</span></button>`;
+    }).join('')}</div><p class="tiny">綠點 赤字 · 紅點 盈餘 · 灰點 持平 · 黃圈 Jay 網球日</p></section>`;
+}
+function activityRecords(){
+  const people=viewedMembers(), end=state.date, count=state.activityRange||7, own=currentUserId();
+  const activity=readDayActivity();
+  const summary=activity.entries?.map(entry=>`<li>${escapeHtml(entry.name)}${entry.minutes?` · ${whole(entry.minutes)} 分鐘`:''}${entry.kcal?` · ${whole(entry.kcal)} kcal`:''}</li>`).join('')||'';
+  const ownActivity=state.activityEditDay===end?activityForm():`<section class="summary-card day-balance"><h3>當日活動</h3>
+    ${activity.steps?`<p>${whole(activity.steps)} 步</p>`:''}${summary?`<ul>${summary}</ul>`:''}
+    ${!activity.steps&&!summary?'<p class="tiny">尚無活動紀錄。</p>':''}<button class="btn btn-outline btn-small" data-action="edit-activity">${activity.steps||summary||activity.extraKcal?'修改活動':'新增活動'}</button></section>`;
+  const days=Array.from({length:count},(_,i)=>shiftDate(end,-i)).map(day=>({day,activity:readDayActivity(day)}))
+    .filter(({activity})=>activity.steps||activity.extraKcal||activity.entries?.length);
+  return people.map(expenditureCard).join('')+sectionRange('activity')+
+    (people.some(person=>person.user_id===own)?ownActivity+`<div class="trend-card"><h3>近 ${count} 天活動</h3>${days.map(({day,activity})=>`<p>${dayLabel(day)} · ${activity.steps?whole(activity.steps)+' 步':''} ${(activity.entries||[]).map(entry=>escapeHtml(entry.name)).join('、')} ${activity.extraKcal?'· '+whole(activity.extraKcal)+' kcal':''}</p>`).join('')||'<p class="tiny">區間內沒有活動紀錄。</p>'}</div>`:'');
+}
+function adviceRecords(){
+  const count=state.adviceRange||7,start=shiftDate(state.date,1-count);
+  const people=viewedMembers();
+  const days=[...new Set(state.meals.filter(meal=>meal.day>=start&&meal.day<=state.date&&
+    people.some(person=>['next','breakfast','lunch','dinner'].some(key=>meal.estimate_meta?.mealPlans?.[person.user_id]?.[key]))).map(meal=>meal.day))].sort().reverse();
+  return sectionRange('advice')+advicePanel()+`<div class="journal-controls">${days.filter(day=>day!==state.date).map(day=>
+    `<button class="btn btn-outline btn-small" data-action="history-day" data-day="${day}">${dayLabel(day)} 的建議</button>`).join('')}</div>`;
+}
 function recordsPage(){
   const tabs=[['meals','餐點紀錄'],['calories','熱量紀錄'],['deficit','活動紀錄'],['advice','建議']];
   const active=state.recordTab||'meals', meals=viewedMeals();
   const contents={
     meals:()=>meals.length?meals.map(mealCard).join(''):'<p>這天還沒有餐點紀錄。</p>',
     calories:dailyHistory,
-    advice:advicePanel,
-    deficit:()=>viewedMembers().map(expenditureCard).join('')+(viewedMembers().some(person=>person.user_id===currentUserId())?activityForm():'')
+    advice:adviceRecords,
+    deficit:activityRecords
   };
-  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${active==='advice'?'':memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
+  return `<main class="layout compact-dashboard">${datedHeader('記錄','record-date')}${memberPicker()}<div class="journal-controls">${tabs.map(([id,label])=>`<button class="btn ${id===active?'btn-primary':'btn-outline'} btn-small" aria-pressed="${id===active}" data-action="record-tab" data-tab="${id}">${label}</button>`).join('')}</div>
   <div class="meal-list">${contents[active]()}</div></main>`;
 }
 
